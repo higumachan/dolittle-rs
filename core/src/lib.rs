@@ -28,10 +28,12 @@ impl VirtualMachine {
     pub fn call_method(&self, this: &Value, method: SymbolId, args: &Vec<Value>) -> Result<Value> {
         match this {
             Value::ObjectReference(sid) => {
-                let obj_heap = self.object_heap.borrow();
-                let obj = obj_heap.get(&sid).unwrap();
+                let obj = {
+                    let obj_heap = self.object_heap.borrow();
+                    obj_heap.get(&sid).unwrap().clone()
+                };
                 let method = obj.get_method(method)?;
-                method(obj, args, self)
+                method(&obj, args, self)
             }
             _ => {
                 Err(Error::Runtime)
@@ -40,7 +42,6 @@ impl VirtualMachine {
     }
 
     pub fn assign(&self, target: SymbolId, value: &Value) -> Result<()> {
-        let obj_heap = self.object_heap.borrow();
         match value {
             Value::ObjectReference(oid) => {
                 self.object_assigns_table.borrow_mut().insert(target, *oid);
@@ -217,10 +218,13 @@ mod tests {
     #[test]
     fn create() {
         let (vm, st) = setup();
+        assert_eq!(vm.object_heap.borrow().len(), 1);
         MethodCall {
             method_symbol: st.get("作る").unwrap(),
             object: Box::new(Decl{target: st.get("ルート").unwrap()}),
             args: vec![],
         }.eval(&vm);
+
+        assert_eq!(vm.object_heap.borrow().len(), 2);
     }
 }
