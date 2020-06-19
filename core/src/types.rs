@@ -1,4 +1,4 @@
-use crate::ObjectId;
+use crate::vm::ObjectId;
 
 #[derive(Clone, Debug)]
 pub enum Value {

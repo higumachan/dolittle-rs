@@ -1,11 +1,11 @@
 use std::cell::RefCell;
 use crate::symbol::SymbolId;
 use std::rc::Rc;
-use crate::VirtualMachine;
 use crate::types::Value;
 use crate::error::{Error, Result};
 use std::collections::HashMap;
 use std::any::Any;
+use crate::vm::VirtualMachine;
 
 type Method = fn(&Rc<Object>, &Vec<Value>, &VirtualMachine) -> Result<Value>;
 
@@ -68,10 +68,9 @@ impl ObjectBody {
 pub mod root {
     use std::cell::RefCell;
     use std::rc::Rc;
-    use std::collections::HashMap;
     use crate::types::Value;
     use crate::error::{Error, Result};
-    use crate::VirtualMachine;
+    use crate::vm::VirtualMachine;
     use crate::object::{Object, ObjectBody};
 
     pub fn create(this: &Rc<Object>, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {

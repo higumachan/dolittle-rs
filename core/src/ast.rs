@@ -1,9 +1,8 @@
 use crate::types::Value;
 use crate::symbol::SymbolId;
-use crate::error::Error;
 use crate::error::Result;
 use std::rc::Rc;
-use crate::VirtualMachine;
+use crate::vm::VirtualMachine;
 
 pub trait ASTNode {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value>;
@@ -43,10 +42,6 @@ pub struct Decl {
 
 impl ASTNode for Decl {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
-        let assigns_table = vm.object_assigns_table
-            .borrow();
-        let obj_id = assigns_table.get(&self.target)
-            .ok_or(Error::ObjectNotFound)?;
-        Ok(Value::ObjectReference(*obj_id))
+        Ok(Value::ObjectReference(vm.get_object_id(self.target)?))
     }
 }
