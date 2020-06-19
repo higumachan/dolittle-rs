@@ -5,7 +5,8 @@ use std::rc::Rc;
 use std::cell::{RefCell, Cell, Ref};
 use std::ops::DerefMut;
 use symbol::SymbolId;
-use crate::Error::ObjectNotFound;
+use crate::Error::{ObjectNotFound, MethodNotFound};
+use std::any::Any;
 
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
@@ -60,6 +61,12 @@ impl VirtualMachine {
             .insert(id, Rc::new(object));
         Ok(id)
     }
+
+    pub fn get_object(&self, object_id: ObjectId) -> Result<Rc<Object>> {
+        self.object_heap.borrow()
+            .get(&object_id)
+            .ok_or(Error::ObjectNotFound).map(|x| x.clone())
+    }
 }
 
 
@@ -87,11 +94,7 @@ pub struct Object {
 impl Object {
     fn empty() -> Self {
         Self {
-            body: RefCell::new(ObjectBody {
-                parent: None,
-                members: HashMap::new(),
-                methods: HashMap::new(),
-            })
+            body: RefCell::new(ObjectBody::new(&None))
         }
     }
 }
@@ -105,7 +108,7 @@ pub mod object {
 
         pub fn create(this: &Rc<Object>, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
             let new_object = Object {
-                body: RefCell::new(ObjectBody::new(this))
+                body: RefCell::new(ObjectBody::new(&Some(this.clone())))
             };
             Ok(Value::ObjectReference(vm.allocate(new_object)?))
         }
@@ -116,24 +119,34 @@ struct ObjectBody {
     parent: Option<Rc<Object>>,
     members: HashMap<SymbolId, Value>,
     methods: HashMap<SymbolId, Method>,
+    internal_values: Option<Box<dyn Any>>,
 }
 
 impl ObjectBody {
-    pub fn new(parent: &Rc<Object>) -> Self {
+    pub fn new(parent: &Option<Rc<Object>>) -> Self {
         ObjectBody{
-            parent: Some(parent.clone()),
+            parent: parent.clone(),
             members: HashMap::new(),
             methods: HashMap::new(),
+            internal_values: None,
         }
     }
 }
 
 impl Object {
     fn get_method(&self, symbol: SymbolId) -> Result<Method> {
+        let parent = self.body.borrow().parent.clone();
         Ok(self.body.borrow().methods
             .get(&symbol)
-            .ok_or(Error::MethodNotFound)?
-            .clone())
+            .map(|x| x.clone())
+            .or_else(|| {
+                if let Some(parent) = parent {
+                    parent.get_method(symbol).ok()
+                } else {
+                    None
+                }
+            })
+            .ok_or(MethodNotFound)?)
     }
 }
 
@@ -195,10 +208,11 @@ impl ASTNode for Decl {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Assign, MethodCall, VirtualMachine, Object, Value, Decl, ASTNode};
+    use crate::{Assign, MethodCall, VirtualMachine, Object, Value, Decl, ASTNode, ObjectBody};
     use crate::symbol::{SymbolId, SymbolTable};
     use crate::object;
     use std::rc::Rc;
+    use std::cell::RefCell;
 
     fn setup() -> (VirtualMachine, SymbolTable) {
         let mut symbol_table = SymbolTable::new();
@@ -208,9 +222,18 @@ mod tests {
         root.body.borrow_mut().methods.insert(create_symbol, object::root::create);
         let vm = VirtualMachine::new();
 
-        let obj_id = vm.allocate(root).unwrap();
+        let root_obj_id = vm.allocate(root).unwrap();
         let root_symbol = symbol_table.insert_system_symbol("ルート");
-        vm.assign(root_symbol, &Value::ObjectReference(obj_id)).unwrap();
+        vm.assign(root_symbol, &Value::ObjectReference(root_obj_id)).unwrap();
+
+        let mut turtle = Object {
+            body: RefCell::new(
+                ObjectBody::new(
+                    &Some(vm.get_object(root_obj_id).unwrap().clone()))),
+        };
+        let turtle_obj_id = vm.allocate(turtle).unwrap();
+        let turtle_symbol = symbol_table.insert_system_symbol("タートル");
+        vm.assign(turtle_symbol, &Value::ObjectReference(turtle_obj_id)).unwrap();
 
         (vm, symbol_table)
     }
@@ -218,13 +241,26 @@ mod tests {
     #[test]
     fn create() {
         let (vm, st) = setup();
-        assert_eq!(vm.object_heap.borrow().len(), 1);
+        assert_eq!(vm.object_heap.borrow().len(), 2);
         MethodCall {
             method_symbol: st.get("作る").unwrap(),
             object: Box::new(Decl{target: st.get("ルート").unwrap()}),
             args: vec![],
         }.eval(&vm);
 
+        assert_eq!(vm.object_heap.borrow().len(), 3);
+    }
+
+    #[test]
+    fn call_parent_method() {
+        let (vm, st) = setup();
         assert_eq!(vm.object_heap.borrow().len(), 2);
+        MethodCall {
+            method_symbol: st.get("作る").unwrap(),
+            object: Box::new(Decl{target: st.get("ルート").unwrap()}),
+            args: vec![],
+        }.eval(&vm);
+
+        assert_eq!(vm.object_heap.borrow().len(), 3);
     }
 }
