@@ -1,3 +1,7 @@
+mod object;
+mod types;
+mod ast;
+mod error;
 mod symbol;
 
 use std::collections::HashMap;
@@ -5,8 +9,11 @@ use std::rc::Rc;
 use std::cell::{RefCell, Cell, Ref};
 use std::ops::DerefMut;
 use symbol::SymbolId;
-use crate::Error::{ObjectNotFound, MethodNotFound};
 use std::any::Any;
+use error::Error;
+use error::Result;
+use types::Value;
+use object::Object;
 
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
@@ -70,167 +77,33 @@ impl VirtualMachine {
 }
 
 
-#[derive(Clone, Debug)]
-pub enum Value {
-    Num(f64),
-    Str(String),
-    ObjectReference(ObjectId),
-    Null,
-}
-
-
-/*
-trait Method: Fn(&Rc<Object>, &Vec<Value>, &VirtualMachine) -> Result<Value> {
-}
- */
-
-type Method = fn(&Rc<Object>, &Vec<Value>, &VirtualMachine) -> Result<Value>;
-
-
-pub struct Object {
-    body: RefCell<ObjectBody>,
-}
-
-impl Object {
-    fn empty() -> Self {
-        Self {
-            body: RefCell::new(ObjectBody::new(&None))
-        }
-    }
-}
-
-pub mod object {
-    pub mod root {
-        use crate::{Value, Object, VirtualMachine, Result, ObjectBody};
-        use std::cell::RefCell;
-        use std::rc::Rc;
-        use std::collections::HashMap;
-
-        pub fn create(this: &Rc<Object>, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
-            let new_object = Object {
-                body: RefCell::new(ObjectBody::new(&Some(this.clone())))
-            };
-            Ok(Value::ObjectReference(vm.allocate(new_object)?))
-        }
-    }
-}
-
-struct ObjectBody {
-    parent: Option<Rc<Object>>,
-    members: HashMap<SymbolId, Value>,
-    methods: HashMap<SymbolId, Method>,
-    internal_values: Option<Box<dyn Any>>,
-}
-
-impl ObjectBody {
-    pub fn new(parent: &Option<Rc<Object>>) -> Self {
-        ObjectBody{
-            parent: parent.clone(),
-            members: HashMap::new(),
-            methods: HashMap::new(),
-            internal_values: None,
-        }
-    }
-}
-
-impl Object {
-    fn get_method(&self, symbol: SymbolId) -> Result<Method> {
-        let parent = self.body.borrow().parent.clone();
-        Ok(self.body.borrow().methods
-            .get(&symbol)
-            .map(|x| x.clone())
-            .or_else(|| {
-                if let Some(parent) = parent {
-                    parent.get_method(symbol).ok()
-                } else {
-                    None
-                }
-            })
-            .ok_or(MethodNotFound)?)
-    }
-}
-
-
-#[derive(Debug)]
-pub enum Error {
-    MethodNotFound,
-    ObjectNotFound,
-    Runtime,
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-trait ASTNode {
-    fn eval(&self, vm: &VirtualMachine) -> Result<Value>;
-}
-
-pub struct MethodCall {
-    method_symbol: SymbolId,
-    object: Box<dyn ASTNode>,
-    args: Vec<Rc<dyn ASTNode>>,
-}
-
-impl ASTNode for MethodCall {
-    fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
-        let object_value = self.object.eval(vm)?;
-        let args_value = self.args.clone().into_iter().map(|x| {x.eval(vm)}).collect::<Result<Vec<Value>>>()?;
-
-        vm.call_method(&object_value, self.method_symbol, &args_value)
-    }
-}
-
-pub struct Assign {
-    target: SymbolId,
-    value_node: Box<dyn ASTNode>,
-}
-
-impl ASTNode for Assign {
-    fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
-        let value = self.value_node.eval(vm)?;
-        vm.assign(self.target, &value)?;
-        Ok(Value::Null)
-    }
-}
-
-pub struct Decl {
-    target: SymbolId,
-}
-
-impl ASTNode for Decl {
-    fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
-        let assigns_table = vm.object_assigns_table
-            .borrow();
-        let obj_id = assigns_table.get(&self.target)
-            .ok_or(Error::ObjectNotFound)?;
-        Ok(Value::ObjectReference(*obj_id))
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{Assign, MethodCall, VirtualMachine, Object, Value, Decl, ASTNode, ObjectBody};
+    use crate::{VirtualMachine};
+    use crate::ast::{Assign, MethodCall, Decl, ASTNode};
     use crate::symbol::{SymbolId, SymbolTable};
     use crate::object;
     use std::rc::Rc;
     use std::cell::RefCell;
+    use crate::object::{ObjectBody, Object};
+    use crate::types::Value;
 
     fn setup() -> (VirtualMachine, SymbolTable) {
         let mut symbol_table = SymbolTable::new();
 
         let create_symbol = symbol_table.insert_system_symbol("作る");
         let mut root = Object::empty();
-        root.body.borrow_mut().methods.insert(create_symbol, object::root::create);
+        root.add_method(create_symbol, object::root::create);
         let vm = VirtualMachine::new();
 
         let root_obj_id = vm.allocate(root).unwrap();
         let root_symbol = symbol_table.insert_system_symbol("ルート");
         vm.assign(root_symbol, &Value::ObjectReference(root_obj_id)).unwrap();
 
-        let mut turtle = Object {
-            body: RefCell::new(
+        let mut turtle = Object::new(
                 ObjectBody::new(
-                    &Some(vm.get_object(root_obj_id).unwrap().clone()))),
-        };
+                    &Some(vm.get_object(root_obj_id).unwrap().clone())),
+        );
         let turtle_obj_id = vm.allocate(turtle).unwrap();
         let turtle_symbol = symbol_table.insert_system_symbol("タートル");
         vm.assign(turtle_symbol, &Value::ObjectReference(turtle_obj_id)).unwrap();
