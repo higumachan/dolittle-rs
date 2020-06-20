@@ -613,6 +613,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nom-unicode"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90476e442b4adc21e561849914822606b5ba6a198c6916eeb52c59ad8b6f03d7"
+dependencies = [
+ "nom",
+]
+
+[[package]]
 name = "num"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -784,6 +793,7 @@ version = "0.1.0"
 dependencies = [
  "core",
  "nom",
+ "nom-unicode",
 ]
 
 [[package]]
