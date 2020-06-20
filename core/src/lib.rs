@@ -5,15 +5,6 @@ mod ast;
 mod error;
 mod symbol;
 
-use std::ops::DerefMut;
-use symbol::SymbolId;
-use std::any::Any;
-use error::Error;
-use error::Result;
-use types::Value;
-use object::Object;
-
-
 #[cfg(test)]
 mod tests {
     use crate::ast::{Assign, MethodCall, Decl, ASTNode};

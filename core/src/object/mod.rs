@@ -69,11 +69,11 @@ pub mod root {
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::types::Value;
-    use crate::error::{Error, Result};
+    use crate::error::Result;
     use crate::vm::VirtualMachine;
     use crate::object::{Object, ObjectBody};
 
-    pub fn create(this: &Rc<Object>, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+    pub fn create(this: &Rc<Object>, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let new_object = Object {
             body: RefCell::new(ObjectBody::new(&Some(this.clone())))
         };

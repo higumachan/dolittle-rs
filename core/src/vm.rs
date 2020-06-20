@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use crate::error::{Error, Result};
 use crate::types::Value;
 use crate::object::Object;
-use std::borrow::Borrow;
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 pub struct ObjectId(usize);
