@@ -794,6 +794,7 @@ dependencies = [
  "core",
  "nom",
  "nom-unicode",
+ "rstest",
 ]
 
 [[package]]
@@ -894,6 +895,19 @@ name = "redox_syscall"
 version = "0.1.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
+
+[[package]]
+name = "rstest"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea1555a95dd3db6095e7695ff1cb173d9d57731209684ef544ead2ff0f6d7077"
+dependencies = [
+ "cfg-if",
+ "proc-macro2 1.0.18",
+ "quote 1.0.7",
+ "rustc_version",
+ "syn",
+]
 
 [[package]]
 name = "rustc-demangle"
