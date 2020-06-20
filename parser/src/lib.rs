@@ -51,39 +51,37 @@ fn specials(input: &str) -> IResult<&str, SpecialToken> {
     ))(input)
 }
 
-struct DolittleParser {
-    symbol_table: RefCell<SymbolTable>,
+fn symbol(input: &str) -> IResult<&str, String> {
+    map(tuple((
+        map(preceded(
+            not(alt((nom_unicode::complete::digit1, value("", specials)))),
+            anychar
+        ), |c| c.to_string()),
+        map(many0(preceded(
+            not(specials),
+            anychar
+        )), |x| {
+            x.iter().collect::<String>()
+        }),
+    )), |(s1, s2)| {
+        let s = (s1 + s2.as_str());
+        s
+    })(input)
 }
 
-impl DolittleParser {
-    fn symbol(&self, input: &str) -> IResult<&str, SymbolId> {
-        map(tuple((
-            map(preceded(
-                not(alt((nom_unicode::complete::digit1, value("", specials)))),
-                anychar
-            ), |c| c.to_string()),
-            map(many0(preceded(
-                not(specials),
-                anychar
-            )), |x| {
-                x.iter().collect::<String>()
-            }),
-        )), |(s1, s2)| {
-            let s = (s1 + s2.as_str());
-            self.symbol_table.borrow_mut().insert_user_symbol_if_no_exist(s.as_str())
-        })(input)
-    }
+fn decl(input: &str) -> IResult<&str, Decl> {
+    map(
+        tuple((symbol, exclamation)),
+        |(symbol_id, _)| Decl { target: symbol_id })(input)
+}
 
-    fn decl(&self, input: &str) -> IResult<&str, Decl> {
-        map(tuple((self.symbol, exclamation)), |(symbol_id, _)| Decl { taget: symbol_id })
-    }
-
-    fn method_call(input: &str) -> IResult<&str, MethodCall> {}
+fn method_call(input: &str) -> IResult<&str, MethodCall> {
+    Ok(("", MethodCall{method: "".to_string(), object: Box::new(Decl { target: "".to_string() }), args: vec![]}))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol};
+    use crate::{specials, SpecialToken, symbol, decl};
     use nom::{
         IResult,
         Err,
@@ -91,6 +89,7 @@ mod tests {
         character,
     };
     use rstest::*;
+    use core::ast::Decl;
 
     #[test]
     fn it_works() {
@@ -116,5 +115,12 @@ mod tests {
     )]
     fn parse_symbol(input: &str, expected: IResult<&str, String>) {
         assert_eq!(symbol(input), expected);
+    }
+
+    #[rstest(input, expected,
+        case("かめた！", Ok(("", Decl{ target: "かめた".to_string()}))),
+    )]
+    fn parse_decl(input: &str, expected: IResult<&str, Decl>) {
+        assert_eq!(decl(input), expected);
     }
 }

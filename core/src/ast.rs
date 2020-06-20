@@ -3,11 +3,13 @@ use crate::symbol::SymbolId;
 use crate::error::Result;
 use std::rc::Rc;
 use crate::vm::VirtualMachine;
+use std::fmt::Debug;
 
-pub trait ASTNode {
+pub trait ASTNode: Debug {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value>;
 }
 
+#[derive(Debug)]
 pub struct MethodCall {
     pub method: String,
     pub object: Box<dyn ASTNode>,
@@ -23,6 +25,7 @@ impl ASTNode for MethodCall {
     }
 }
 
+#[derive(Debug)]
 pub struct Assign {
     pub target: String,
     pub value_node: Box<dyn ASTNode>,
@@ -36,6 +39,7 @@ impl ASTNode for Assign {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Decl {
     pub target: String,
 }
