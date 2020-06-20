@@ -40,8 +40,17 @@ impl SymbolTable {
         sid
     }
 
-    pub fn insert_user_symbol(&mut self, name: &str) {
-        self.forward.insert(name.to_string(), SymbolId(self.user_next));
+    pub fn insert_user_symbol(&mut self, name: &str) -> SymbolId {
+        let sid = SymbolId(self.user_next);
+        self.forward.insert(name.to_string(), sid);
         self.user_next += 1;
+        sid
+    }
+
+    pub fn insert_user_symbol_if_no_exist(&mut self, name: &str) -> SymbolId {
+        if !self.forward.contains_key(name) {
+            return self.insert_user_symbol(name)
+        }
+        self.forward.get(name).copied().unwrap()
     }
 }

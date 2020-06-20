@@ -1,9 +1,9 @@
 mod vm;
 mod object;
 mod types;
-mod ast;
+pub mod ast;
 mod error;
-mod symbol;
+pub mod symbol;
 
 #[cfg(test)]
 mod tests {
@@ -16,16 +16,14 @@ mod tests {
     use crate::types::Value;
     use crate::vm::VirtualMachine;
 
-    fn setup() -> (VirtualMachine, SymbolTable) {
-        let mut symbol_table = SymbolTable::new();
-
-        let create_symbol = symbol_table.insert_system_symbol("作る");
+    fn setup() -> VirtualMachine {
+        let vm = VirtualMachine::new();
+        let create_symbol = vm.to_symbol("作る");
         let mut root = Object::empty();
         root.add_method(create_symbol, object::root::create);
-        let vm = VirtualMachine::new();
 
         let root_obj_id = vm.allocate(root).unwrap();
-        let root_symbol = symbol_table.insert_system_symbol("ルート");
+        let root_symbol = vm.to_symbol("ルート");
         vm.assign(root_symbol, &Value::ObjectReference(root_obj_id)).unwrap();
 
         let mut turtle = Object::new(
@@ -33,19 +31,19 @@ mod tests {
                     &Some(vm.get_object(root_obj_id).unwrap().clone())),
         );
         let turtle_obj_id = vm.allocate(turtle).unwrap();
-        let turtle_symbol = symbol_table.insert_system_symbol("タートル");
+        let turtle_symbol = vm.to_symbol("タートル");
         vm.assign(turtle_symbol, &Value::ObjectReference(turtle_obj_id)).unwrap();
 
-        (vm, symbol_table)
+        vm
     }
 
     #[test]
     fn create() {
-        let (vm, st) = setup();
+        let vm = setup();
         assert_eq!(vm.object_heap_borrow().len(), 2);
         MethodCall {
-            method_symbol: st.get("作る").unwrap(),
-            object: Box::new(Decl{target: st.get("ルート").unwrap()}),
+            method: "作る".to_string(),
+            object: Box::new(Decl{target: "ルート".to_string()}),
             args: vec![],
         }.eval(&vm);
 
@@ -54,11 +52,11 @@ mod tests {
 
     #[test]
     fn call_parent_method() {
-        let (vm, st) = setup();
+        let vm = setup();
         assert_eq!(vm.object_heap_borrow().len(), 2);
         MethodCall {
-            method_symbol: st.get("作る").unwrap(),
-            object: Box::new(Decl{target: st.get("ルート").unwrap()}),
+            method: "作る".to_string(),
+            object: Box::new(Decl{target: "タートル".to_string()}),
             args: vec![],
         }.eval(&vm);
 

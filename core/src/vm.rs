@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::symbol::SymbolId;
+use crate::symbol::{SymbolId, SymbolTable};
 use std::cell::{RefCell, Cell, Ref};
 use std::collections::HashMap;
 use crate::error::{Error, Result};
@@ -13,6 +13,7 @@ pub struct VirtualMachine {
     object_heap: RefCell<HashMap<ObjectId, Rc<Object>>>,
     next_object_id: Cell<usize>,
     object_assigns_table: RefCell<HashMap<SymbolId, ObjectId>>,
+    symbol_table: RefCell<SymbolTable>,
 }
 
 impl VirtualMachine {
@@ -21,6 +22,7 @@ impl VirtualMachine {
             object_heap: RefCell::new(HashMap::new()),
             next_object_id: Cell::new(0),
             object_assigns_table: RefCell::new(HashMap::new()),
+            symbol_table: RefCell::new(SymbolTable::new()),
         }
     }
     pub fn call_method(&self, this: &Value, method: SymbolId, args: &Vec<Value>) -> Result<Value> {
@@ -75,5 +77,9 @@ impl VirtualMachine {
 
     pub fn object_heap_borrow(&self) -> Ref<HashMap<ObjectId, Rc<Object>>>{
         self.object_heap.borrow()
+    }
+
+    pub fn to_symbol(&self, symbol_str: &str) -> SymbolId {
+        self.symbol_table.borrow_mut().insert_user_symbol_if_no_exist(symbol_str)
     }
 }

@@ -9,7 +9,7 @@ pub trait ASTNode {
 }
 
 pub struct MethodCall {
-    pub method_symbol: SymbolId,
+    pub method: String,
     pub object: Box<dyn ASTNode>,
     pub args: Vec<Rc<dyn ASTNode>>,
 }
@@ -19,29 +19,29 @@ impl ASTNode for MethodCall {
         let object_value = self.object.eval(vm)?;
         let args_value = self.args.clone().into_iter().map(|x| {x.eval(vm)}).collect::<Result<Vec<Value>>>()?;
 
-        vm.call_method(&object_value, self.method_symbol, &args_value)
+        vm.call_method(&object_value, vm.to_symbol(self.method.as_str()), &args_value)
     }
 }
 
 pub struct Assign {
-    pub target: SymbolId,
+    pub target: String,
     pub value_node: Box<dyn ASTNode>,
 }
 
 impl ASTNode for Assign {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
         let value = self.value_node.eval(vm)?;
-        vm.assign(self.target, &value)?;
+        vm.assign(vm.to_symbol(self.target.as_str()), &value)?;
         Ok(Value::Null)
     }
 }
 
 pub struct Decl {
-    pub target: SymbolId,
+    pub target: String,
 }
 
 impl ASTNode for Decl {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
-        Ok(Value::ObjectReference(vm.get_object_id(self.target)?))
+        Ok(Value::ObjectReference(vm.get_object_id(vm.to_symbol(self.target.as_str()))?))
     }
 }
