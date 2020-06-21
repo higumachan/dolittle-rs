@@ -7,12 +7,13 @@ use std::cell::RefCell;
 use nom::error::ErrorKind;
 use std::rc::Rc;
 use core::ast::ASTNode;
-use nom::sequence::{terminated, separated_pair};
+use nom::sequence::{terminated, separated_pair, delimited};
 use unicode_num::ParseUnicodeExt;
 use nom::combinator::iterator;
 use nom::multi::many1;
 use nom::bytes::complete::{take_until, take_till};
 use nom::Err::Error;
+use core::ast::ASTNode::MethodCall;
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 enum SpecialToken {
@@ -39,11 +40,17 @@ fn end_of_term(input: &str) -> IResult<&str, SpecialToken> {
     value(SpecialToken::EndOfTerm, tag("。"))(input)
 }
 
+fn open_parentheses(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::OpenParentheses, alt((tag("("), tag("（"))))(input)
+}
+
+fn close_parentheses(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::CloseParentheses, alt((tag(")"), tag(")"))))(input)
+}
+
 fn specials(input: &str) -> IResult<&str, SpecialToken> {
     let plus = value(SpecialToken::Plus, alt((tag("+"), tag("＋"))));
     let minus = value(SpecialToken::Minus, (tag("-")));
-    let open_parentheses = value(SpecialToken::OpenParentheses, alt((tag("("), tag("（"))));
-    let close_parentheses = value(SpecialToken::CloseParentheses, alt((tag(")"), tag(")"))));
     let open_angles = value(SpecialToken::OpenAngles ,alt((tag("["), tag("｢"))));
     let close_angles = value(SpecialToken::CloseAngles, alt((tag("]"), tag("｣"))));
 
@@ -126,8 +133,8 @@ fn term(input: &str) -> IResult<&str, ASTNode> {
 
 fn decl(input: &str) -> IResult<&str, ASTNode> {
     map(
-        tuple((symbol, exclamation)),
-        |(symbol_id, _)| ASTNode::new_decl(symbol_id))(input)
+        symbol,
+        |(symbol_id)| ASTNode::new_decl(symbol_id))(input)
 }
 
 fn num(input: &str) -> IResult<&str, core::types::Value> {
@@ -140,64 +147,54 @@ fn num_value_static(input: &str) -> IResult<&str, ASTNode> {
     map(num, |x| ASTNode::new_value_static(x))(input)
 }
 
+fn single_value(input: &str) -> IResult<&str, ASTNode> {
+    alt(
+        (
+            num_value_static,
+            decl,
+            delimited(open_parentheses, form, close_parentheses)
+        )
+    )(input)
+}
+
+fn single_value_without_decl(input: &str) -> IResult<&str, ASTNode> {
+    alt(
+        (
+            num_value_static,
+            delimited(open_parentheses, form, close_parentheses)
+        )
+    )(input)
+}
+
 fn method_call(input: &str) -> IResult<&str, ASTNode> {
-    map(tuple((
-        last_symbol,
-        form,
+    let parse_method_calls = tuple((
         preceded(
             nom_unicode::complete::space0,
-            many0(terminated(form, nom_unicode::complete::space1)),
+            many0(terminated(single_value_without_decl, nom_unicode::complete::space1)),
         ),
-    )), |(method, object, args)| {
-        ASTNode::new_method_call(
-            method,
-            object,
-            args,
-        )
+        symbol,
+    )
+    );
+    map(tuple((
+        terminated(
+        single_value,
+        exclamation,
+        ),
+        many1(
+            parse_method_calls
+        ),
+    )), |(object, method_calls)| {
+        let mut method_calls: Vec<(Vec<ASTNode>, String)> = method_calls;
+        method_calls.into_iter().fold(object, |node, x| {
+            ASTNode::new_method_call(x.1, node, x.0)
+        })
     })(input)
 }
 
-#[derive(Clone)]
-enum Token {
-    SpecialToken(SpecialToken),
-    ValueToken(core::types::Value),
-    SymbolToken(String),
-}
-
-fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
-    many1(terminated(alt((
-        map(symbol, |x| Token::SymbolToken(x)),
-        map(specials, |x| Token::SpecialToken(x)),
-        map(num, |x| Token::ValueToken(x)),
-    )), nom_unicode::complete::space0))(input)
-}
-
-fn last_symbol(input: &str) -> IResult<&str, String> {
-    let tokens = tokenize(input);
-    tokens.and_then(|x| {
-        let mut a = x.1.clone();
-        let mut t = None;
-        while let Some(s) = a.pop() {
-            match s {
-                Token::SpecialToken(SpecialToken::EndOfTerm) => {
-                }
-                _ => {
-                    t = Some(s);
-                    break;
-                }
-            }
-        }
-        if let Some(Token::SymbolToken(sym)) = x.1.last() {
-            Ok((&input[0..(input.len() - sym.len())], sym.clone()))
-        } else {
-            Err(Error((input, ErrorKind::Tag)))
-        }
-    })
-}
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call, last_symbol};
+    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call,};
     use nom::{
         IResult,
         Err,
@@ -237,7 +234,8 @@ mod tests {
     }
 
     #[rstest(input, expected,
-        case("かめた！", Ok(("", ASTNode::new_decl("かめた".to_string())))),
+        case("かめた", Ok(("", ASTNode::new_decl("かめた".to_string())))),
+        case("かめた！", Ok(("！", ASTNode::new_decl("かめた".to_string())))),
     )]
     fn parse_decl(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(decl(input), expected);
@@ -283,7 +281,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn kameta_walk_turn_left90() {
         assert_eq!(term("かめた！１００　歩く　９０　右回り。"),
                    Ok(("", ASTNode::new_method_call("右回り".to_string(), ASTNode::new_method_call(
@@ -297,23 +294,11 @@ mod tests {
     #[test]
     fn awesome_check() {
         let target = "タートル！作る";
-        assert_eq!(decl(target), Ok(("作る", ASTNode::new_decl("タートル".to_string()))));
+        assert_eq!(decl(target), Ok(("！作る", ASTNode::new_decl("タートル".to_string()))));
 
         assert_eq!("１００".parse_unicode(), Ok(100usize));
 
         assert_eq!(form("１００"), Ok(("",
                                    ASTNode::new_value_static(Value::Num(100.0)))));
-
-        assert_eq!(last_symbol("タートル！作る"), Ok(("タートル！", "作る".to_string())));
-    }
-
-    #[rstest(input, expected,
-        case("タートル！作る", Ok(("タートル！", "作る".to_string()))),
-        case("タートル！作る　１００", Err(Err::Error(("タートル！作る　１００", ErrorKind::Tag)))),
-        case("かめた！１００　歩く　９０　右回り", Ok(("かめた！１００　歩く　９０　", "右回り".to_string()))),
-        case("タートル！作る。", Ok(("タートル！", "作る".to_string()))),
-    )]
-    fn parse_last_symbol(input: &str, expected: IResult<&str, String>) {
-        assert_eq!(last_symbol(input), expected);
     }
 }
