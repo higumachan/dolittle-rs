@@ -842,6 +842,7 @@ dependencies = [
  "nom",
  "nom-unicode",
  "rstest",
+ "unicode_num",
 ]
 
 [[package]]

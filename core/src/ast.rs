@@ -1,5 +1,4 @@
 use crate::types::Value;
-use crate::symbol::SymbolId;
 use crate::error::Result;
 use std::rc::Rc;
 use crate::vm::VirtualMachine;
@@ -14,7 +13,8 @@ pub trait Eval: Debug {
 pub enum ASTNode {
     MethodCall(MethodCallImpl),
     Assign(AssignImpl),
-    Decl(DeclImpl)
+    Decl(DeclImpl),
+    StaticValue(Value),
 }
 
 impl Eval for ASTNode {
@@ -23,6 +23,7 @@ impl Eval for ASTNode {
             Self::MethodCall(x) => x.eval(vm),
             Self::Assign(x) => x.eval(vm),
             Self::Decl(x) => x.eval(vm),
+            Self::StaticValue(v) => Ok(v.clone()),
         }
     }
 }
@@ -47,6 +48,10 @@ impl ASTNode {
         Self::Decl(DeclImpl {
             target
         })
+    }
+
+    pub fn new_value_static(value: Value) -> Self {
+        Self::StaticValue(value)
     }
 }
 

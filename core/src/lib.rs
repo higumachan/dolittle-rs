@@ -1,6 +1,6 @@
 mod vm;
 mod object;
-mod types;
+pub mod types;
 pub mod ast;
 mod error;
 pub mod symbol;

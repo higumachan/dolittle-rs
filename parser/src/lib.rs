@@ -8,6 +8,9 @@ use nom::error::ErrorKind;
 use std::rc::Rc;
 use core::ast::ASTNode;
 use nom::sequence::{terminated, separated_pair};
+use unicode_num::ParseUnicodeExt;
+use nom::combinator::iterator;
+use nom::multi::many1;
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 enum SpecialToken {
@@ -55,14 +58,21 @@ fn specials(input: &str) -> IResult<&str, SpecialToken> {
     ))(input)
 }
 
+fn not_symbol(input: &str) -> IResult<&str, ()> {
+    value((), alt((
+        value("", specials),
+        nom_unicode::complete::space1,
+    )))(input)
+}
+
 fn symbol(input: &str) -> IResult<&str, String> {
     map(tuple((
         map(preceded(
-            not(alt((nom_unicode::complete::digit1, value("", specials)))),
+            not(alt((nom_unicode::complete::digit1, value("", not_symbol)))),
             anychar
         ), |c| c.to_string()),
         map(many0(preceded(
-            not(specials),
+            not(not_symbol),
             anychar
         )), |x| {
             x.iter().collect::<String>()
@@ -76,6 +86,7 @@ fn symbol(input: &str) -> IResult<&str, String> {
 fn form(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
+            num_value_static,
             method_call,
             form_without_method_call,
         )
@@ -83,7 +94,10 @@ fn form(input: &str) -> IResult<&str, ASTNode> {
 }
 
 fn form_without_method_call(input: &str) -> IResult<&str, ASTNode> {
-    decl(input)
+    alt((
+        num_value_static,
+        decl,
+    ))(input)
 }
 
 fn assign(input: &str) -> IResult<&str, ASTNode> {
@@ -114,10 +128,23 @@ fn decl(input: &str) -> IResult<&str, ASTNode> {
         |(symbol_id, _)| ASTNode::new_decl(symbol_id))(input)
 }
 
+fn num(input: &str) -> IResult<&str, core::types::Value> {
+    map(nom_unicode::complete::digit1, |x: &str| {
+        core::types::Value::Num(x.parse_unicode().unwrap())
+    })(input)
+}
+
+fn num_value_static(input: &str) -> IResult<&str, ASTNode> {
+    map(num, |x| ASTNode::new_value_static(x))(input)
+}
+
 fn method_call(input: &str) -> IResult<&str, ASTNode> {
     map(tuple((
         form_without_method_call,
-        many0(form),
+        preceded(
+            nom_unicode::complete::space0,
+            many0(terminated(form, nom_unicode::complete::space1)),
+        ),
         symbol,
     )), |(object, args, method)| {
         ASTNode::new_method_call(
@@ -126,6 +153,20 @@ fn method_call(input: &str) -> IResult<&str, ASTNode> {
             args,
         )
     })(input)
+}
+
+enum Token {
+    SpecialToken(SpecialToken),
+    ValueToken(core::types::Value),
+    SymbolToken(String),
+}
+
+fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
+    many1(alt((
+        map(symbol, |x| Token::SymbolToken(x)),
+        map(specials, |x| Token::SpecialToken(x)),
+        map(num, |x| Token::ValueToken(x)),
+    )))(input)
 }
 
 #[cfg(test)]
@@ -139,6 +180,9 @@ mod tests {
     };
     use rstest::*;
     use core::ast::ASTNode;
+    use core::types::Value;
+    use nom::lib::std::collections::hash_map::Values;
+    use unicode_num::ParseUnicodeExt;
 
     #[test]
     fn it_works() {
@@ -200,8 +244,37 @@ mod tests {
     }
 
     #[test]
+    fn kameta_walk() {
+        assert_eq!(
+            term("かめた！１００　歩く。"),
+            Ok(("", ASTNode::new_method_call(
+                "歩く".to_string(),
+                ASTNode::new_decl("かめた".to_string()),
+                vec![
+                    ASTNode::new_value_static(Value::Num(100.0)),
+            ])))
+        );
+    }
+
+    #[test]
+    fn kameta_walk_turn_left90() {
+        assert_eq!(term("かめた！１００　歩く　９０　右回り。"),
+                   Ok(("", ASTNode::new_method_call("右回り".to_string(), ASTNode::new_method_call(
+                       "歩く".to_string(),
+                       ASTNode::new_decl("かめた".to_string()),
+                       vec![
+                           ASTNode::new_value_static(Value::Num(100.0)),
+                       ]), vec![ASTNode::new_value_static(Value::Num(90.0))]))));
+    }
+
+    #[test]
     fn awesome_check() {
         let target = "タートル！作る";
         assert_eq!(decl(target), Ok(("作る", ASTNode::new_decl("タートル".to_string()))));
+
+        assert_eq!("１００".parse_unicode(), Ok(100usize));
+
+        assert_eq!(form("１００"), Ok(("",
+                                   ASTNode::new_value_static(Value::Num(100.0)))))
     }
 }

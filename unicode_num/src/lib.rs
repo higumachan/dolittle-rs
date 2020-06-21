@@ -1,7 +1,8 @@
 use std::str::FromStr;
 use num::Num;
 
-trait ParseUnicodeExt {
+
+pub trait ParseUnicodeExt {
     fn parse_unicode<F: FromStr + Num>(&self) -> Result<F, F::Err>;
 }
 
