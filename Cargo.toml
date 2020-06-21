@@ -10,6 +10,7 @@ edition = "2018"
 members = [
     "core",
     "parser",
+    "unicode_num",
 ]
 
 [dependencies]
@@ -21,3 +22,4 @@ find_folder = "*"
 winit = "0.19"
 core = { path = "./core" }
 parser = { path = "./parser"}
+unicode_num = { path = "./unicode_num" }
