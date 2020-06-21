@@ -1,18 +1,13 @@
 
-use nom::{
-    IResult,
-    character::complete::{anychar,},
-    bytes::complete::{tag,},
-    combinator::{value, not, map},
-    sequence::{tuple, preceded},
-    multi::{many0,},
-    branch::alt,
-};
+use nom::{IResult, character::complete::{anychar, }, bytes::complete::{tag, }, combinator::{value, not, map}, sequence::{tuple, preceded}, multi::{many0, }, branch::alt, Err};
 use std::ptr::eq;
 use std::borrow::Borrow;
-use core::ast::{MethodCall, Decl};
 use core::symbol::{SymbolTable, SymbolId};
 use std::cell::RefCell;
+use nom::error::ErrorKind;
+use std::rc::Rc;
+use core::ast::ASTNode;
+use nom::sequence::{terminated, separated_pair};
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 enum SpecialToken {
@@ -24,16 +19,24 @@ enum SpecialToken {
     CloseParentheses,
     OpenAngles,
     CloseAngles,
+    EndOfTerm,
 }
 
 fn exclamation(input: &str) -> IResult<&str, SpecialToken> {
     value(SpecialToken::Exclamation, alt((tag("!"), tag("！"))))(input)
 }
 
+fn equal(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Equal, alt((tag("="), tag("＝"))))(input)
+}
+
+fn end_of_term(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::EndOfTerm, tag("。"))(input)
+}
+
 fn specials(input: &str) -> IResult<&str, SpecialToken> {
     let plus = value(SpecialToken::Plus, alt((tag("+"), tag("＋"))));
-    let minus = value(SpecialToken::Minus, alt((tag("-"), tag("ー"))));
-    let equal = value(SpecialToken::Equal, alt((tag("="), tag("＝"))));
+    let minus = value(SpecialToken::Minus, (tag("-")));
     let open_parentheses = value(SpecialToken::OpenParentheses, alt((tag("("), tag("（"))));
     let close_parentheses = value(SpecialToken::CloseParentheses, alt((tag(")"), tag(")"))));
     let open_angles = value(SpecialToken::OpenAngles ,alt((tag("["), tag("｢"))));
@@ -44,6 +47,7 @@ fn specials(input: &str) -> IResult<&str, SpecialToken> {
         minus,
         exclamation,
         equal,
+        end_of_term,
         open_parentheses,
         close_parentheses,
         open_angles,
@@ -69,19 +73,64 @@ fn symbol(input: &str) -> IResult<&str, String> {
     })(input)
 }
 
-fn decl(input: &str) -> IResult<&str, Decl> {
-    map(
-        tuple((symbol, exclamation)),
-        |(symbol_id, _)| Decl { target: symbol_id })(input)
+fn form(input: &str) -> IResult<&str, ASTNode> {
+    alt(
+        (
+            method_call,
+            form_without_method_call,
+        )
+    )(input)
 }
 
-fn method_call(input: &str) -> IResult<&str, MethodCall> {
-    Ok(("", MethodCall{method: "".to_string(), object: Box::new(Decl { target: "".to_string() }), args: vec![]}))
+fn form_without_method_call(input: &str) -> IResult<&str, ASTNode> {
+    decl(input)
+}
+
+fn assign(input: &str) -> IResult<&str, ASTNode> {
+    map(separated_pair(
+        symbol,
+        equal,
+        form,
+    ),
+        |(sym, value)| ASTNode::new_assign(sym, Box::new(value))
+    )(input)
+}
+
+fn term(input: &str) -> IResult<&str, ASTNode> {
+    terminated(
+        alt(
+            (
+                assign,
+                form,
+            )
+        ),
+        end_of_term,
+    )(input)
+}
+
+fn decl(input: &str) -> IResult<&str, ASTNode> {
+    map(
+        tuple((symbol, exclamation)),
+        |(symbol_id, _)| ASTNode::new_decl(symbol_id))(input)
+}
+
+fn method_call(input: &str) -> IResult<&str, ASTNode> {
+    map(tuple((
+        form_without_method_call,
+        many0(form),
+        symbol,
+    )), |(object, args, method)| {
+        ASTNode::new_method_call(
+            method,
+            object,
+            args,
+        )
+    })(input)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol, decl};
+    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call};
     use nom::{
         IResult,
         Err,
@@ -89,7 +138,7 @@ mod tests {
         character,
     };
     use rstest::*;
-    use core::ast::Decl;
+    use core::ast::ASTNode;
 
     #[test]
     fn it_works() {
@@ -118,9 +167,41 @@ mod tests {
     }
 
     #[rstest(input, expected,
-        case("かめた！", Ok(("", Decl{ target: "かめた".to_string()}))),
+        case("かめた！", Ok(("", ASTNode::new_decl("かめた".to_string())))),
     )]
-    fn parse_decl(input: &str, expected: IResult<&str, Decl>) {
+    fn parse_decl(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(decl(input), expected);
+    }
+
+    #[rstest(input, expected,
+        case("タートル！作る", Ok(
+        (
+            "",
+            ASTNode::new_method_call("作る".to_string(), ASTNode::new_decl("タートル".to_string()), vec![])
+        )))
+    )]
+    fn parse_method_call(input: &str, expected: IResult<&str, ASTNode>) {
+        assert_eq!(method_call(input), expected);
+    }
+
+    #[test]
+    fn kameta_create() {
+        assert_eq!(
+            term("かめた＝タートル！作る。"),
+            Ok(("", ASTNode::new_assign(
+                "かめた".to_string(),
+                Box::new(ASTNode::new_method_call(
+                    "作る".to_string(),
+                    ASTNode::new_decl("タートル".to_string()),
+                    vec![]
+                ))
+            )))
+        );
+    }
+
+    #[test]
+    fn awesome_check() {
+        let target = "タートル！作る";
+        assert_eq!(decl(target), Ok(("作る", ASTNode::new_decl("タートル".to_string()))));
     }
 }

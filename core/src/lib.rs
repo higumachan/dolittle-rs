@@ -7,7 +7,6 @@ pub mod symbol;
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Assign, MethodCall, Decl, ASTNode};
     use crate::symbol::{SymbolId, SymbolTable};
     use crate::object;
     use std::rc::Rc;
@@ -15,6 +14,7 @@ mod tests {
     use crate::object::{ObjectBody, Object};
     use crate::types::Value;
     use crate::vm::VirtualMachine;
+    use crate::ast::{ASTNode, Eval};
 
     fn setup() -> VirtualMachine {
         let vm = VirtualMachine::new();
@@ -41,11 +41,11 @@ mod tests {
     fn create() {
         let vm = setup();
         assert_eq!(vm.object_heap_borrow().len(), 2);
-        MethodCall {
-            method: "作る".to_string(),
-            object: Box::new(Decl{target: "ルート".to_string()}),
-            args: vec![],
-        }.eval(&vm);
+        ASTNode::new_method_call(
+            "作る".to_string(),
+            ASTNode::new_decl("ルート".to_string()),
+            vec![],
+        ).eval(&vm);
 
         assert_eq!(vm.object_heap_borrow().len(), 3);
     }
@@ -54,11 +54,11 @@ mod tests {
     fn call_parent_method() {
         let vm = setup();
         assert_eq!(vm.object_heap_borrow().len(), 2);
-        MethodCall {
-            method: "作る".to_string(),
-            object: Box::new(Decl{target: "タートル".to_string()}),
-            args: vec![],
-        }.eval(&vm);
+        ASTNode::new_method_call(
+            "作る".to_string(),
+            ASTNode::new_decl("タートル".to_string()),
+            vec![],
+        ).eval(&vm);
 
         assert_eq!(vm.object_heap_borrow().len(), 3);
     }
