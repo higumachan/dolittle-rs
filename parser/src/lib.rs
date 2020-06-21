@@ -95,18 +95,10 @@ fn symbol(input: &str) -> IResult<&str, String> {
 fn form(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
-            num_value_static,
             method_call,
-            form_without_method_call,
+            num_value_static,
         )
     )(input)
-}
-
-fn form_without_method_call(input: &str) -> IResult<&str, ASTNode> {
-    alt((
-        num_value_static,
-        decl,
-    ))(input)
 }
 
 fn assign(input: &str) -> IResult<&str, ASTNode> {
