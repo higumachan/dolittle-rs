@@ -6,6 +6,7 @@ use crate::error::{Error, Result};
 use crate::types::Value;
 use crate::object::Object;
 use crate::object;
+use crate::ast::{ASTNode, Eval};
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 pub struct ObjectId(usize);
@@ -26,15 +27,20 @@ impl VirtualMachine {
             symbol_table: RefCell::new(SymbolTable::new()),
         }
     }
+
+    pub fn eval(&self, ast: &ASTNode) -> Result<Value> {
+        ast.eval(self)
+    }
+
     pub fn call_method(&self, this: &Value, method: SymbolId, args: &Vec<Value>) -> Result<Value> {
         match this {
-            Value::ObjectReference(sid) => {
+            Value::ObjectReference(oid) => {
                 let obj = {
                     let obj_heap = self.object_heap.borrow();
-                    obj_heap.get(&sid).unwrap().clone()
+                    obj_heap.get(&oid).unwrap().clone()
                 };
                 let method = obj.get_method(method)?;
-                method(&obj, args, self)
+                method(this, args, self)
             }
             _ => {
                 Err(Error::Runtime)
@@ -104,17 +110,23 @@ impl VirtualMachine {
             let mut root = Object::empty();
             root.add_method(self.to_symbol("作る"), object::root::create);
             let root_obj_id = self.allocate(root).unwrap();
-            vm.assign(self.to_symbol("ルート"), &Value::ObjectReference(root_obj_id)).unwrap()
+            self.assign(self.to_symbol("ルート"), &Value::ObjectReference(root_obj_id)).unwrap();
+            root_obj_id
         };
 
         let turtle_obj_id = {
-            let mut turtle = self.get_object_from_value(object::root::create(&self.get_object(root_obj_id).unwrap(), &vec![], self).unwrap()).unwrap();
-            turtle.add_member(self.to_symbol("x"), Value::Num(0.0));
-            turtle.add_member(self.to_symbol("y"), Value::Num(0.0));
-            turtle.add_member(self.to_symbol("direction"), Value::Num(0.0));
-            let turtle_obj_id = vm.allocate(turtle).unwrap();
-            let turtle_symbol = vm.to_symbol("タートル");
-            vm.assign(turtle_symbol, &Value::ObjectReference(turtle_obj_id)).unwrap()
+            let turtle_value = &object::root::create(
+                &Value::ObjectReference(root_obj_id), &vec![], self
+            ).unwrap().clone();
+            let mut turtle = self.get_object_from_value(
+                &turtle_value
+            ).unwrap();
+            turtle.set_member(self.to_symbol("x"), Value::Num(0.0));
+            turtle.set_member(self.to_symbol("y"), Value::Num(0.0));
+            turtle.set_member(self.to_symbol("direction"), Value::Num(0.0));
+            let turtle_symbol = self.to_symbol("タートル");
+            self.assign(turtle_symbol, &turtle_value).unwrap();
+            turtle_value.as_object_id().unwrap()
         };
     }
 }

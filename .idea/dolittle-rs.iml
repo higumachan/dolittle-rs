@@ -3,8 +3,12 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/parser/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/intepreter/parser/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/intepreter/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/utilities/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/intepreter/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/intepreter/target" />
       <excludeFolder url="file://$MODULE_DIR$/parser/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

@@ -12,7 +12,7 @@ pub enum Value {
 impl Value {
     pub fn as_num(&self) -> Result<f64> {
         if let Self::Num(f) = self {
-            f
+            Ok(*f)
         } else {
             Err(Error::Runtime)
         }
@@ -20,7 +20,7 @@ impl Value {
 
     pub fn as_object_id(&self) -> Result<ObjectId> {
         if let Self::ObjectReference(f) = self {
-            f
+            Ok(*f)
         } else {
             Err(Error::Runtime)
         }
