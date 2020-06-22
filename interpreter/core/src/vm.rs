@@ -89,6 +89,10 @@ impl VirtualMachine {
         self.get_object(self.get_object_id(self.to_symbol(symbol))?)
     }
 
+    pub fn get_object_heap(&self) -> Ref<HashMap<ObjectId, Rc::<Object>>> {
+        self.object_heap.borrow()
+    }
+
     pub fn get_object_id(&self, symbol_id: SymbolId) -> Result<ObjectId> {
         let assigns_table = self.object_assigns_table
             .borrow();

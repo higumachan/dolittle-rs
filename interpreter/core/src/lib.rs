@@ -1,5 +1,5 @@
 pub mod vm;
-mod object;
+pub mod object;
 pub mod types;
 pub mod ast;
 mod error;

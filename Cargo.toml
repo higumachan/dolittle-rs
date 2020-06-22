@@ -12,7 +12,8 @@ members = [
     "interpreter/core",
     "interpreter/parser",
     "utilities",
-    "unicode_num"
+    "unicode_num",
+    "gui",
 ]
 
 [dependencies]

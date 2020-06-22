@@ -10,6 +10,7 @@
       <sourceFolder url="file://$MODULE_DIR$/utilities/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/interpreter/core/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/interpreter/parser/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/gui/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/parser/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
