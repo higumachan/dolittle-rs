@@ -6,9 +6,12 @@ use crate::error::{Error, Result};
 use std::collections::HashMap;
 use std::any::Any;
 use crate::vm::VirtualMachine;
+use std::fmt::{Debug, Formatter};
 
 type Method = fn(&Value, &Vec<Value>, &VirtualMachine) -> Result<Value>;
 
+
+#[derive(Debug)]
 pub struct Object {
     body: RefCell<ObjectBody>,
 }
@@ -69,6 +72,15 @@ pub struct ObjectBody {
     internal_values: Option<Box<dyn Any>>,
 }
 
+impl Debug for ObjectBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ObjectBody")
+            .field("parent", &format!("{:?}", self.parent))
+            .field("members", &self.members)
+            .finish()
+    }
+}
+
 impl ObjectBody {
     pub fn new(parent: &Option<Rc<Object>>) -> Self {
         ObjectBody{
@@ -109,13 +121,34 @@ pub mod turtle {
     const x: &str = "x";
     const y: &str = "y";
     const direction: &str = "direction";
+    const visible: &str = "visible";
+
+    pub fn create(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let obj_value: Value = super::root::create(this, _args, vm)?;
+        let obj = vm.get_object_from_value(&obj_value)?;
+        obj.set_member_str(visible, Value::Bool(true), vm);
+        Ok(obj_value)
+    }
 
     pub fn walk(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let amount = args.get(0).ok_or(Error::ArgumentError)?.as_num()?;
         let this_obj = vm.get_object_from_value(this)?;
         let dv = dir_vector(this_obj.get_member_str(direction, vm)?.as_num()?);
-        this_obj.set_member_str(x, Value::Num(this_obj.get_member_str(x, vm)?.as_num()? + amount * dv.x), vm);
-        this_obj.set_member_str(y, Value::Num(this_obj.get_member_str(y, vm)?.as_num()? + amount * dv.y), vm);
+        let (x1, y1) =
+            (this_obj.get_member_str(x, vm)?.as_num()?, this_obj.get_member_str(y, vm)?.as_num()?);
+        let (x2, y2) = (x1 + amount * dv.x, y1 + amount * dv.y);
+        this_obj.set_member_str(x, Value::Num(x2), vm);
+        this_obj.set_member_str(y, Value::Num(y2), vm);
+
+        let line = vm.call_method(
+            &Value::ObjectReference(vm.get_object_id(
+                vm.to_symbol("線"))?),
+            vm.to_symbol("作る"), &vec![])?;
+        let line_obj = vm.get_object_from_value(&line)?;
+        line_obj.set_member_str("x1", Value::Num(x1), vm);
+        line_obj.set_member_str("y1", Value::Num(y1), vm);
+        line_obj.set_member_str("x2", Value::Num(x2), vm);
+        line_obj.set_member_str("y2", Value::Num(y2), vm);
 
         Ok(this.clone())
     }

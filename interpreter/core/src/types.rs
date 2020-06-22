@@ -5,6 +5,7 @@ use crate::error::{Error, Result};
 pub enum Value {
     Num(f64),
     Str(String),
+    Bool(bool),
     ObjectReference(ObjectId),
     Null,
 }
@@ -13,6 +14,14 @@ impl Value {
     pub fn as_num(&self) -> Result<f64> {
         if let Self::Num(f) = self {
             Ok(*f)
+        } else {
+            Err(Error::Runtime)
+        }
+    }
+
+    pub fn as_bool(&self) -> Result<bool> {
+        if let Self::Bool(b) = self {
+            Ok(*b)
         } else {
             Err(Error::Runtime)
         }

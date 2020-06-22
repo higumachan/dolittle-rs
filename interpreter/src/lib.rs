@@ -58,6 +58,7 @@ mod tests {
             100.0, kameta.get_member_str("x", &vm).unwrap().as_num().unwrap()));
         assert!(nearly_equal(0.0, kameta.get_member_str("y", &vm).unwrap().as_num().unwrap()));
         assert!(nearly_equal(0.0, kameta.get_member_str("direction", &vm).unwrap().as_num().unwrap()));
+        assert!(kameta.get_member_str("visible", &vm).unwrap().as_bool().unwrap());
     }
 
     #[test]
@@ -77,5 +78,7 @@ mod tests {
             100.0, kameta.get_member_str("y", &vm).unwrap().as_num().unwrap(), eps));
         assert!(nearly_equal_with_eps(
             90.0, kameta.get_member_str("direction", &vm).unwrap().as_num().unwrap(), eps));
+        assert!(kameta.get_member_str("visible", &vm).unwrap().as_bool().unwrap());
+        assert_eq!(vm.get_object_heap().len(), 5);
     }
 }

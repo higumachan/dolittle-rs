@@ -125,17 +125,31 @@ impl VirtualMachine {
             let mut turtle = self.get_object_from_value(
                 &turtle_value
             ).unwrap();
-            turtle.add_method(self.to_symbol("歩く"), object::turtle::walk);
+            turtle.add_method(self.to_symbol("歩く"),
+                              object::turtle::walk);
             turtle.add_method(self.to_symbol("右回り"),
                               object::turtle::turn_right);
             turtle.add_method(self.to_symbol("左回り"),
                               object::turtle::turn_left);
+            turtle.add_method(self.to_symbol("作る"),
+                                             object::turtle::create);
             turtle.set_member(self.to_symbol("x"), Value::Num(0.0));
             turtle.set_member(self.to_symbol("y"), Value::Num(0.0));
             turtle.set_member(self.to_symbol("direction"), Value::Num(0.0));
+            turtle.set_member(self.to_symbol("visible"),
+                              Value::Bool(false));
             let turtle_symbol = self.to_symbol("タートル");
             self.assign(turtle_symbol, &turtle_value).unwrap();
             turtle_value.as_object_id().unwrap()
+        };
+
+        let line_obj_id = {
+            let line_value = &object::root::create(
+                &Value::ObjectReference(root_obj_id), &vec![], self
+            ).unwrap().clone();
+            let line_symbol = self.to_symbol("線");
+            self.assign(line_symbol, &line_value).unwrap();
+            line_value.as_object_id().unwrap()
         };
     }
 }
