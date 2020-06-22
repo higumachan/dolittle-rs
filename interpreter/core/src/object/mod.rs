@@ -44,6 +44,10 @@ impl Object {
     pub fn add_method(&self, symbol: SymbolId, method: Method) {
         self.body.borrow_mut().methods.insert(symbol, method);
     }
+
+    pub fn add_member(&self, symbol: SymbolId, value: Value) {
+        self.body.borrow_mut().members.insert(symbol, value);
+    }
 }
 
 pub struct ObjectBody {
@@ -69,14 +73,31 @@ pub mod root {
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::types::Value;
-    use crate::error::Result;
     use crate::vm::VirtualMachine;
+    use crate::error::Result;
     use crate::object::{Object, ObjectBody};
 
-    pub fn create(this: &Rc<Object>, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+    pub fn create(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let this_obj = vm.get_object_from_value(this)?;
         let new_object = Object {
-            body: RefCell::new(ObjectBody::new(&Some(this.clone())))
+            body: RefCell::new(ObjectBody::new(&Some(this_obj.clone())))
         };
         Ok(Value::ObjectReference(vm.allocate(new_object)?))
+    }
+}
+
+pub mod turtle {
+    use crate::types::Value;
+    use crate::vm::VirtualMachine;
+    use crate::error::Result;
+    use utilities::geometry::dir_vector;
+
+    pub fn walk(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let this_obj = vm.get_object_from_value(this)?;
+        let dv = dir_vector(this_obj.get_value("r")?.as_num()?);
+        this.obj.set_value(this_obj.get_value("x")?.as_num()? + dv.x);
+        this.obj.set_value(this_obj.get_value("y")?.as_num()? + dv.y);
+
+        Ok(this.clone())
     }
 }

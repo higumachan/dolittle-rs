@@ -197,6 +197,9 @@ dependencies = [
 [[package]]
 name = "core"
 version = "0.1.0"
+dependencies = [
+ "utilities",
+]
 
 [[package]]
 name = "core-foundation"
@@ -288,10 +291,9 @@ dependencies = [
  "conrod_core",
  "conrod_glium",
  "conrod_winit",
- "core",
  "find_folder",
  "glium",
- "parser",
+ "interpreter",
  "winit",
 ]
 
@@ -464,6 +466,15 @@ name = "instant"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7777a24a1ce5de49fcdde84ec46efa487c3af49d5b6e6e0a50367cc5c1096182"
+
+[[package]]
+name = "interpreter"
+version = "0.1.0"
+dependencies = [
+ "core",
+ "parser",
+ "utilities",
+]
 
 [[package]]
 name = "khronos_api"
@@ -1107,6 +1118,13 @@ name = "unicode-xid"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826e7639553986605ec5979c7dd957c7895e93eabed50ab2ffa7f6128a75097c"
+
+[[package]]
+name = "utilities"
+version = "0.1.0"
+dependencies = [
+ "num",
+]
 
 [[package]]
 name = "version_check"
