@@ -121,6 +121,11 @@ impl VirtualMachine {
             let mut turtle = self.get_object_from_value(
                 &turtle_value
             ).unwrap();
+            turtle.add_method(self.to_symbol("歩く"), object::turtle::walk);
+            turtle.add_method(self.to_symbol("右回り"),
+                              object::turtle::turn_right);
+            turtle.add_method(self.to_symbol("左回り"),
+                              object::turtle::turn_left);
             turtle.set_member(self.to_symbol("x"), Value::Num(0.0));
             turtle.set_member(self.to_symbol("y"), Value::Num(0.0));
             turtle.set_member(self.to_symbol("direction"), Value::Num(0.0));

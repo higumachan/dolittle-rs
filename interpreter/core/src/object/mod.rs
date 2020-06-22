@@ -73,7 +73,9 @@ impl ObjectBody {
     pub fn new(parent: &Option<Rc<Object>>) -> Self {
         ObjectBody{
             parent: parent.clone(),
-            members: HashMap::new(),
+            members: parent.as_ref().map(
+                |p| p.body.borrow().members.clone()
+            ).unwrap_or(HashMap::new()),
             methods: HashMap::new(),
             internal_values: None,
         }
@@ -101,14 +103,37 @@ pub mod root {
 pub mod turtle {
     use crate::types::Value;
     use crate::vm::VirtualMachine;
-    use crate::error::Result;
+    use crate::error::{Error, Result};
     use utilities::geometry::dir_vector;
 
-    pub fn walk(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+    const x: &str = "x";
+    const y: &str = "y";
+    const direction: &str = "direction";
+
+    pub fn walk(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let amount = args.get(0).ok_or(Error::ArgumentError)?.as_num()?;
         let this_obj = vm.get_object_from_value(this)?;
-        let dv = dir_vector(this_obj.get_member_str("direction", vm)?.as_num()?);
-        this_obj.set_member_str("x", Value::Num(this_obj.get_member_str("x", vm)?.as_num()? + dv.x), vm);
-        this_obj.set_member_str("y", Value::Num(this_obj.get_member_str("y", vm)?.as_num()? + dv.y), vm);
+        let dv = dir_vector(this_obj.get_member_str(direction, vm)?.as_num()?);
+        this_obj.set_member_str(x, Value::Num(this_obj.get_member_str(x, vm)?.as_num()? + amount * dv.x), vm);
+        this_obj.set_member_str(y, Value::Num(this_obj.get_member_str(y, vm)?.as_num()? + amount * dv.y), vm);
+
+        Ok(this.clone())
+    }
+
+    pub fn turn_left(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let angle_deg = args.get(0).ok_or(Error::ArgumentError)?.as_num()?;
+        let this_obj = vm.get_object_from_value(this)?;
+        this_obj.set_member_str(direction,
+                                Value::Num(this_obj.get_member_str(direction, vm)?.as_num()? + angle_deg), vm);
+
+        Ok(this.clone())
+    }
+
+    pub fn turn_right(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let angle_deg = -(args.get(0).ok_or(Error::ArgumentError)?.as_num()?);
+        let this_obj = vm.get_object_from_value(this)?;
+        this_obj.set_member_str(direction,
+                                Value::Num(this_obj.get_member_str(direction, vm)?.as_num()? + angle_deg), vm);
 
         Ok(this.clone())
     }

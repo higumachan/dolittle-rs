@@ -1,7 +1,7 @@
 use crate::vm::ObjectId;
 use crate::error::{Error, Result};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Num(f64),
     Str(String),

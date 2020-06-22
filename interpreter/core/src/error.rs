@@ -3,6 +3,7 @@ pub enum Error {
     MethodNotFound,
     ObjectNotFound,
     MemberNotFound,
+    ArgumentError,
     Runtime,
 }
 

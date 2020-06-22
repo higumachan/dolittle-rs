@@ -9,11 +9,21 @@ use std::rc::Rc;
 use core::ast::ASTNode;
 use nom::sequence::{terminated, separated_pair, delimited};
 use unicode_num::ParseUnicodeExt;
-use nom::combinator::iterator;
+use nom::combinator::{iterator, complete};
 use nom::multi::many1;
 use nom::bytes::complete::{take_until, take_till};
 use nom::Err::Error;
 use core::ast::ASTNode::MethodCall;
+use nom::character::complete::{line_ending};
+
+pub fn parse_program_code(input: &str) -> IResult<&str, Vec<ASTNode>> {
+    complete(many0(terminated(term, alt(
+        (
+            nom_unicode::complete::space0,
+            line_ending,
+        )
+    ))))(input)
+}
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
 enum SpecialToken {
@@ -186,7 +196,7 @@ fn method_call(input: &str) -> IResult<&str, ASTNode> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call,};
+    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call, parse_program_code};
     use nom::{
         IResult,
         Err,
@@ -200,8 +210,12 @@ mod tests {
     use unicode_num::ParseUnicodeExt;
 
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_parse_program_code() {
+        let result = parse_program_code(r#"かめた＝タートル！作る。
+かめた！１００　歩く。
+"#);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().1.len(), 2);
     }
 
     #[rstest(input, expected,
