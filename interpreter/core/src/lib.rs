@@ -1,4 +1,4 @@
-mod vm;
+pub mod vm;
 mod object;
 pub mod types;
 pub mod ast;

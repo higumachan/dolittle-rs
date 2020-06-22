@@ -2,6 +2,7 @@
 pub enum Error {
     MethodNotFound,
     ObjectNotFound,
+    MemberNotFound,
     Runtime,
 }
 

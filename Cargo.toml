@@ -8,9 +8,10 @@ edition = "2018"
 
 [workspace]
 members = [
-    "core",
-    "parser",
-    "unicode_num",
+    "interpreter",
+    "interpreter/core",
+    "interpreter/parser",
+    "utilities",
 ]
 
 [dependencies]
@@ -20,6 +21,6 @@ conrod_winit = "0.70.0"
 glium = "0.24.0"
 find_folder = "*"
 winit = "0.19"
-core = { path = "./core" }
-parser = { path = "./parser"}
-unicode_num = { path = "./unicode_num" }
+interpreter = { path = "interpreter" }
+
+[dev-dependencies]

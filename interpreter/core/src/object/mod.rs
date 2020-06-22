@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::any::Any;
 use crate::vm::VirtualMachine;
 
-type Method = fn(&Rc<Object>, &Vec<Value>, &VirtualMachine) -> Result<Value>;
+type Method = fn(&Value, &Vec<Value>, &VirtualMachine) -> Result<Value>;
 
 pub struct Object {
     body: RefCell<ObjectBody>,
@@ -44,6 +44,22 @@ impl Object {
     pub fn add_method(&self, symbol: SymbolId, method: Method) {
         self.body.borrow_mut().methods.insert(symbol, method);
     }
+
+    pub fn set_member(&self, symbol: SymbolId, value: Value) {
+        self.body.borrow_mut().members.insert(symbol, value);
+    }
+
+    pub fn get_member(&self, symbol: SymbolId) -> Result<Value> {
+        self.body.borrow_mut().members.get(&symbol).cloned().ok_or(Error::MemberNotFound)
+    }
+
+    pub fn get_member_str(&self, symbol: &str, vm: &VirtualMachine) -> Result<Value> {
+        self.get_member(vm.to_symbol(symbol))
+    }
+
+    pub fn set_member_str(&self, symbol: &str, value: Value, vm: &VirtualMachine) {
+        self.set_member(vm.to_symbol(symbol), value)
+    }
 }
 
 pub struct ObjectBody {
@@ -69,14 +85,31 @@ pub mod root {
     use std::cell::RefCell;
     use std::rc::Rc;
     use crate::types::Value;
-    use crate::error::Result;
     use crate::vm::VirtualMachine;
+    use crate::error::Result;
     use crate::object::{Object, ObjectBody};
 
-    pub fn create(this: &Rc<Object>, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+    pub fn create(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let this_obj = vm.get_object_from_value(this)?;
         let new_object = Object {
-            body: RefCell::new(ObjectBody::new(&Some(this.clone())))
+            body: RefCell::new(ObjectBody::new(&Some(this_obj.clone())))
         };
         Ok(Value::ObjectReference(vm.allocate(new_object)?))
+    }
+}
+
+pub mod turtle {
+    use crate::types::Value;
+    use crate::vm::VirtualMachine;
+    use crate::error::Result;
+    use utilities::geometry::dir_vector;
+
+    pub fn walk(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let this_obj = vm.get_object_from_value(this)?;
+        let dv = dir_vector(this_obj.get_member_str("direction", vm)?.as_num()?);
+        this_obj.set_member_str("x", Value::Num(this_obj.get_member_str("x", vm)?.as_num()? + dv.x), vm);
+        this_obj.set_member_str("y", Value::Num(this_obj.get_member_str("y", vm)?.as_num()? + dv.y), vm);
+
+        Ok(this.clone())
     }
 }
