@@ -3,6 +3,7 @@ use interpreter::Interpreter;
 use std::rc::Rc;
 use std::sync::Arc;
 use core::object::Object;
+use std::cell::RefCell;
 
 
 #[derive(Clone, Debug)]
@@ -32,20 +33,21 @@ pub trait ViewModel {
 }
 
 pub struct InterpreterViewModel {
-    model: Arc<Interpreter>,
+    model: Arc<RefCell<Interpreter>>,
 }
 
 impl ViewModel for InterpreterViewModel {
     fn visual_objects(&self) -> Vec<VisualObject> {
-        let x = self.model.get_symbol("x");
-        let y = self.model.get_symbol("y");
-        let x1 = self.model.get_symbol("x1");
-        let y1= self.model.get_symbol("y1");
-        let x2 = self.model.get_symbol("x2");
-        let y2= self.model.get_symbol("y2");
-        let direction = self.model.get_symbol("direction");
-        let visible = self.model.get_symbol("visible");
-        let mut turtles: Vec<VisualObject> = self.model.get_objects().iter().filter_map(|obj| {
+        let model = self.model.borrow();
+        let x = model.get_symbol("x");
+        let y = model.get_symbol("y");
+        let x1 = model.get_symbol("x1");
+        let y1= model.get_symbol("y1");
+        let x2 = model.get_symbol("x2");
+        let y2= model.get_symbol("y2");
+        let direction = model.get_symbol("direction");
+        let visible = model.get_symbol("visible");
+        let mut turtles: Vec<VisualObject> = model.get_objects().iter().filter_map(|obj| {
             if obj.get_member(visible).ok()?.as_bool().ok()? {
                 Some(VisualObject::ImageObject(ImageObjectImpl {
                     x: obj.get_member(x).ok()?.as_num().ok()?,
@@ -55,7 +57,7 @@ impl ViewModel for InterpreterViewModel {
                 }))
             } else { None }
         }).collect();
-        turtles.extend(self.model.get_objects().iter().filter_map(|obj| {
+        turtles.extend(model.get_objects().iter().filter_map(|obj| {
             Some(VisualObject::Line(LineImpl {
                 x1: obj.get_member(x1).ok()?.as_num().ok()?,
                 y1: obj.get_member(y1).ok()?.as_num().ok()?,
@@ -69,9 +71,9 @@ impl ViewModel for InterpreterViewModel {
 }
 
 impl InterpreterViewModel {
-    pub fn new(interpreter: Interpreter) -> Self {
+    pub fn new(interpreter: Arc<RefCell<Interpreter>>) -> Self {
         Self {
-            model: Arc::new(interpreter),
+            model: interpreter,
         }
     }
 }
