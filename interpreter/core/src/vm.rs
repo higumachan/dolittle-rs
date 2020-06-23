@@ -16,6 +16,7 @@ pub struct VirtualMachine {
     next_object_id: Cell<usize>,
     object_assigns_table: RefCell<HashMap<SymbolId, ObjectId>>,
     symbol_table: RefCell<SymbolTable>,
+    stack: RefCell<Vec<HashMap<SymbolId, Value>>>,
 }
 
 impl VirtualMachine {
@@ -25,11 +26,24 @@ impl VirtualMachine {
             next_object_id: Cell::new(0),
             object_assigns_table: RefCell::new(HashMap::new()),
             symbol_table: RefCell::new(SymbolTable::new()),
+            stack: RefCell::new(vec![]),
         }
     }
 
     pub fn eval(&self, ast: &ASTNode) -> Result<Value> {
         ast.eval(self)
+    }
+
+    pub fn push_stack(&self, virtual_args: &Vec<String>, real_args: &Vec<Value>) {
+        let mut s = HashMap::new();
+        for (va, ra) in virtual_args.iter().zip(real_args.iter()) {
+            s.insert(self.to_symbol(va), ra.clone());
+        }
+        self.stack.borrow_mut().push(s);
+    }
+
+    pub fn pop_stack(&self) {
+
     }
 
     pub fn call_method(&self, this: &Value, method: SymbolId, args: &Vec<Value>) -> Result<Value> {
@@ -74,6 +88,10 @@ impl VirtualMachine {
             .ok_or(Error::ObjectNotFound).map(|x| x.clone())
     }
 
+    pub fn get_block_object_value(&self) -> Result<Value> {
+        Ok(Value::ObjectReference(self.get_object_id(self.to_symbol("ブロック"))?))
+    }
+
     pub fn get_object_from_value(&self, value :&Value) -> Result<Rc<Object>> {
         match value {
             Value::ObjectReference(obj_id) => {
@@ -116,6 +134,25 @@ impl VirtualMachine {
             let root_obj_id = self.allocate(root).unwrap();
             self.assign(self.to_symbol("ルート"), &Value::ObjectReference(root_obj_id)).unwrap();
             root_obj_id
+        };
+
+        let block_obj_id = {
+            let block_value = &object::root::create(
+                &Value::ObjectReference(root_obj_id), &vec![], self
+            ).unwrap().clone();
+            let mut block = self.get_object_from_value(
+                &block_value
+            ).unwrap();
+
+            block.add_method(
+                self.to_symbol("実行"),
+                object::block::exec
+            );
+
+            let block_symbol = self.to_symbol("ブロック");
+            self.assign(block_symbol, &block_value).unwrap();
+
+            block_value.as_object_id().unwrap()
         };
 
         let turtle_obj_id = {

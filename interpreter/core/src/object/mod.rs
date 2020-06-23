@@ -63,13 +63,24 @@ impl Object {
     pub fn set_member_str(&self, symbol: &str, value: Value, vm: &VirtualMachine) {
         self.set_member(vm.to_symbol(symbol), value)
     }
+
+    pub fn set_internal_value(&self, internal_value: Rc<dyn Any>) {
+        self.body.borrow_mut().internal_value = Some(internal_value);
+    }
+
+    pub fn get_internal_value<T: Any>(&self) -> Rc<T> {
+        self.body
+            .borrow_mut().internal_value.clone()
+            .expect("invalid get internal value").downcast::<T>()
+            .expect("invalid get internal value").clone()
+    }
 }
 
 pub struct ObjectBody {
     parent: Option<Rc<Object>>,
     members: HashMap<SymbolId, Value>,
     methods: HashMap<SymbolId, Method>,
-    internal_values: Option<Box<dyn Any>>,
+    internal_value: Option<Rc<dyn Any>>,
 }
 
 impl Debug for ObjectBody {
@@ -89,7 +100,7 @@ impl ObjectBody {
                 |p| p.body.borrow().members.clone()
             ).unwrap_or(HashMap::new()),
             methods: HashMap::new(),
-            internal_values: None,
+            internal_value: None,
         }
     }
 }
@@ -169,5 +180,38 @@ pub mod turtle {
                                 Value::Num(this_obj.get_member_str(direction, vm)?.as_num()? + angle_deg), vm);
 
         Ok(this.clone())
+    }
+}
+
+pub mod block {
+    use crate::types::Value;
+    use crate::vm::VirtualMachine;
+    use crate::error::{Error, Result};
+    use utilities::geometry::dir_vector;
+    use crate::ast::{ASTNode, BlockDefineImpl};
+    use std::rc::Rc;
+    use std::borrow::Borrow;
+
+    type BlockInternalValue = (Vec<String>, ASTNode);
+
+    pub fn create(this: &Value, virtual_args: &Vec<String>,
+                  body: Rc<ASTNode>, vm: &VirtualMachine) -> Result<Value> {
+        let obj_value: Value = super::root::create(this, &vec![], vm)?;
+        let obj: Rc<super::Object> = vm.get_object_from_value(&obj_value)?;
+        obj.set_internal_value(Rc::new(
+            (virtual_args.clone(),
+             body.clone()
+        )));
+        Ok(obj_value)
+    }
+
+    pub fn exec(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let this_obj = vm.get_object_from_value(this)?;
+        let t = this_obj.get_internal_value::<BlockInternalValue>();
+        let (virtual_args, body) = t.borrow();
+        vm.push_stack(virtual_args, args);
+        let result = vm.eval(body)?;
+        vm.pop_stack();
+        return Ok(result)
     }
 }

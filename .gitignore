@@ -1,3 +1,4 @@
 /target
 interpreter/parser/target
 interpreter/core/target
+gui/assets

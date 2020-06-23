@@ -117,7 +117,7 @@ fn assign(input: &str) -> IResult<&str, ASTNode> {
         equal,
         form,
     ),
-        |(sym, value)| ASTNode::new_assign(sym, Box::new(value))
+        |(sym, value)| ASTNode::new_assign(sym, Rc::new(value))
     )(input)
 }
 
@@ -208,6 +208,7 @@ mod tests {
     use core::types::Value;
     use nom::lib::std::collections::hash_map::Values;
     use unicode_num::ParseUnicodeExt;
+    use std::rc::Rc;
 
     #[test]
     fn test_parse_program_code() {
@@ -264,7 +265,7 @@ mod tests {
             term("かめた＝タートル！作る。"),
             Ok(("", ASTNode::new_assign(
                 "かめた".to_string(),
-                Box::new(ASTNode::new_method_call(
+                Rc::new(ASTNode::new_method_call(
                     "作る".to_string(),
                     ASTNode::new_decl("タートル".to_string()),
                     vec![]

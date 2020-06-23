@@ -4,17 +4,19 @@ use std::rc::Rc;
 use crate::vm::VirtualMachine;
 use std::fmt::Debug;
 use std::ops::Deref;
+use crate::object::ObjectBody;
 
 pub trait Eval: Debug {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value>;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ASTNode {
     MethodCall(MethodCallImpl),
     Assign(AssignImpl),
     Decl(DeclImpl),
     StaticValue(Value),
+    BlockDefine(BlockDefineImpl)
 }
 
 impl Eval for ASTNode {
@@ -24,6 +26,7 @@ impl Eval for ASTNode {
             Self::Assign(x) => x.eval(vm),
             Self::Decl(x) => x.eval(vm),
             Self::StaticValue(v) => Ok(v.clone()),
+            Self::BlockDefine(x) => x.eval(vm),
         }
     }
 }
@@ -32,12 +35,12 @@ impl ASTNode {
     pub fn new_method_call(method: String, object: ASTNode, args: Vec<ASTNode>) -> Self {
         Self::MethodCall(MethodCallImpl {
             method,
-            object: Box::new(object),
+            object: Rc::new(object),
             args: args.into_iter().map(|x| Rc::new(x)).collect(),
         })
     }
 
-    pub fn new_assign(target: String, value_node: Box<ASTNode>) -> Self {
+    pub fn new_assign(target: String, value_node: Rc<ASTNode>) -> Self {
         Self::Assign(AssignImpl {
             target,
             value_node,
@@ -56,10 +59,10 @@ impl ASTNode {
 }
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MethodCallImpl {
     pub method: String,
-    pub object: Box<ASTNode>,
+    pub object: Rc<ASTNode>,
     pub args: Vec<Rc<ASTNode>>,
 }
 
@@ -72,10 +75,10 @@ impl Eval for MethodCallImpl {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AssignImpl {
     pub target: String,
-    pub value_node: Box<ASTNode>,
+    pub value_node: Rc<ASTNode>,
 }
 
 impl Eval for AssignImpl {
@@ -86,7 +89,7 @@ impl Eval for AssignImpl {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DeclImpl {
     pub target: String,
 }
@@ -94,5 +97,21 @@ pub struct DeclImpl {
 impl Eval for DeclImpl {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
         Ok(Value::ObjectReference(vm.get_object_id(vm.to_symbol(self.target.as_str()))?))
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BlockDefineImpl {
+    pub virtual_args: Vec<String>,
+    pub body: Rc<ASTNode>,
+}
+
+impl Eval for BlockDefineImpl {
+    fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
+        let block_obj_value = vm.get_block_object_value()?;
+        crate::object::block::create(&block_obj_value,
+                                     &self.virtual_args,
+                                     self.body.clone(),
+                                     vm)
     }
 }
