@@ -62,4 +62,27 @@ mod tests {
 
         assert_eq!(vm.object_heap_borrow().len(), 3);
     }
+
+    #[test]
+    fn define_block_and_call_block() {
+        let mut vm = VirtualMachine::new();
+        vm.initialize();
+
+        let turtle_create = ASTNode::new_method_call(
+            "作る".to_string(),
+            ASTNode::new_decl("タートル".to_string()),
+            vec![],
+        );
+
+        vm.eval(
+            &ASTNode::new_assign("なでこ".to_string(),
+                                Rc::new(ASTNode::new_block_define(&vec![], &turtle_create)))
+        );
+
+        let before_exec = vm.object_heap_borrow().len();
+        vm.eval(&ASTNode::new_method_call("実行".to_string(),
+                                          ASTNode::new_decl("なでこ".to_string()), vec![]));
+
+        assert_eq!(vm.object_heap_borrow().len(), before_exec + 1);
+    }
 }

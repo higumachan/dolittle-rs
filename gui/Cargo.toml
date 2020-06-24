@@ -1,0 +1,16 @@
+[package]
+name = "gui"
+version = "0.1.0"
+authors = ["Yuta Hinokuma <yuta.hinokuma725@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+piston = "0.50.0"
+piston2d-graphics = "0.36.0"
+pistoncore-glutin_window = "0.64.0"
+piston2d-opengl_graphics = "0.72.0"
+find_folder = "0.3.0"
+interpreter = { path = "../interpreter"}
+core = { path = "../interpreter/core"}

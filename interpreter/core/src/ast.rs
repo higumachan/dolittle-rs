@@ -56,6 +56,13 @@ impl ASTNode {
     pub fn new_value_static(value: Value) -> Self {
         Self::StaticValue(value)
     }
+
+    pub fn new_block_define(virtual_args: &Vec<String>, body: &ASTNode) -> Self {
+        Self::BlockDefine(BlockDefineImpl {
+            virtual_args: virtual_args.clone(),
+            body: Rc::new(body.clone()),
+        })
+    }
 }
 
 

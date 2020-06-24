@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::types::Value;
 use crate::error::{Error, Result};
 use std::collections::HashMap;
-use std::any::Any;
+use std::any::{Any, TypeId};
 use crate::vm::VirtualMachine;
 use std::fmt::{Debug, Formatter};
 
@@ -68,7 +68,7 @@ impl Object {
         self.body.borrow_mut().internal_value = Some(internal_value);
     }
 
-    pub fn get_internal_value<T: Any>(&self) -> Rc<T> {
+    pub fn get_internal_value<T: Clone + Any>(&self) -> Rc<T> {
         self.body
             .borrow_mut().internal_value.clone()
             .expect("invalid get internal value").downcast::<T>()
@@ -191,17 +191,19 @@ pub mod block {
     use crate::ast::{ASTNode, BlockDefineImpl};
     use std::rc::Rc;
     use std::borrow::Borrow;
+    use std::any::{TypeId, Any};
 
-    type BlockInternalValue = (Vec<String>, ASTNode);
+    type BlockInternalValue = (Vec<String>, Rc<ASTNode>);
 
     pub fn create(this: &Value, virtual_args: &Vec<String>,
                   body: Rc<ASTNode>, vm: &VirtualMachine) -> Result<Value> {
         let obj_value: Value = super::root::create(this, &vec![], vm)?;
         let obj: Rc<super::Object> = vm.get_object_from_value(&obj_value)?;
-        obj.set_internal_value(Rc::new(
+        let v = Rc::new(
             (virtual_args.clone(),
              body.clone()
-        )));
+            ));
+        obj.set_internal_value(v);
         Ok(obj_value)
     }
 
