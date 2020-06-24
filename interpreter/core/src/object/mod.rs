@@ -193,10 +193,10 @@ pub mod block {
     use std::borrow::Borrow;
     use std::any::{TypeId, Any};
 
-    type BlockInternalValue = (Vec<String>, Rc<ASTNode>);
+    type BlockInternalValue = (Vec<String>, Vec<Rc<ASTNode>>);
 
     pub fn create(this: &Value, virtual_args: &Vec<String>,
-                  body: Rc<ASTNode>, vm: &VirtualMachine) -> Result<Value> {
+                  body: &Vec<Rc<ASTNode>>, vm: &VirtualMachine) -> Result<Value> {
         let obj_value: Value = super::root::create(this, &vec![], vm)?;
         let obj: Rc<super::Object> = vm.get_object_from_value(&obj_value)?;
         let v = Rc::new(
@@ -212,7 +212,10 @@ pub mod block {
         let t = this_obj.get_internal_value::<BlockInternalValue>();
         let (virtual_args, body) = t.borrow();
         vm.push_stack(virtual_args, args);
-        let result = vm.eval(body)?;
+        let mut result = Value::Null;
+        for b in body.iter() {
+            result = vm.eval(b)?;
+        }
         vm.pop_stack();
         return Ok(result)
     }

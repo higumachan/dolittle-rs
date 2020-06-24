@@ -76,7 +76,8 @@ mod tests {
 
         vm.eval(
             &ASTNode::new_assign(&None, "なでこ",
-                                &ASTNode::new_block_define(&vec![], &turtle_create))
+                                &ASTNode::new_block_define(
+                                    &vec![], &vec![turtle_create]))
         );
 
         let before_exec = vm.object_heap_borrow().len();
@@ -99,12 +100,15 @@ mod tests {
                 &vec![],
             ));
 
+        let walk2_body = ASTNode::new_method_call(
+            "歩く", &ASTNode::new_decl(&None, "かめた"), &vec![ASTNode::StaticValue(Value::Num(100.0))]
+        );
 
         vm.eval(
             &ASTNode::new_assign(
                 &Some(ASTNode::new_decl(&None, "かめた")),
                 "歩く２",
-                &ASTNode::new_block_define(&vec![], &turtle_create))
+                &ASTNode::new_block_define(&vec![], &vec![turtle_create]))
         );
 
         let before_exec = vm.object_heap_borrow().len();
