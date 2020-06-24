@@ -5,7 +5,7 @@ use crate::types::Value;
 use crate::error::{Error, Result};
 use std::collections::HashMap;
 use std::any::{Any, TypeId};
-use crate::vm::VirtualMachine;
+use crate::vm::{VirtualMachine, ObjectId};
 use std::fmt::{Debug, Formatter};
 
 type Method = fn(&Value, &Vec<Value>, &VirtualMachine) -> Result<Value>;
@@ -53,7 +53,19 @@ impl Object {
     }
 
     pub fn get_member(&self, symbol: SymbolId) -> Result<Value> {
-        self.body.borrow_mut().members.get(&symbol).cloned().ok_or(Error::MemberNotFound)
+        let parent = self.body.borrow().parent.clone();
+
+        Ok(self.body.borrow().members
+            .get(&symbol)
+            .map(|x| x.clone())
+            .or_else(|| {
+                if let Some(parent) = parent {
+                    parent.get_member(symbol).ok()
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::MemberNotFound)?)
     }
 
     pub fn get_member_str(&self, symbol: &str, vm: &VirtualMachine) -> Result<Value> {

@@ -43,7 +43,7 @@ impl VirtualMachine {
     }
 
     pub fn pop_stack(&self) {
-
+        self.stack.borrow_mut().pop();
     }
 
     pub fn call_method(&self, this: &Value, method: SymbolId, args: &Vec<Value>) -> Result<Value> {
@@ -53,8 +53,20 @@ impl VirtualMachine {
                     let obj_heap = self.object_heap.borrow();
                     obj_heap.get(&oid).unwrap().clone()
                 };
-                let method = obj.get_method(method)?;
-                method(this, args, self)
+                let method_obj = obj.get_member(method);
+                match method_obj {
+                    Ok(x) => {
+                        object::block::exec(&x,
+                                            args, self)
+                    }
+                    Err(Error::MemberNotFound) => {
+                        let method = obj.get_method(method)?;
+                        method(this, args, self)
+                    }
+                    Err(e) => {
+                        Err(e)
+                    }
+                }
             }
             _ => {
                 Err(Error::Runtime)
@@ -117,6 +129,14 @@ impl VirtualMachine {
         assigns_table.get(&symbol_id)
             .copied()
             .ok_or(Error::ObjectNotFound)
+    }
+
+    pub fn get_value_in_scope(&self, symbol_id: SymbolId) -> Result<Value> {
+        self.stack.borrow().iter().rev().find_map(|x| x.get(&symbol_id).cloned())
+            .ok_or(Error::ObjectNotFound)
+            .or_else(|_| {
+                Ok(Value::ObjectReference(self.get_object_id(symbol_id)?))
+            })
     }
 
     pub fn object_heap_borrow(&self) -> Ref<HashMap<ObjectId, Rc<Object>>>{

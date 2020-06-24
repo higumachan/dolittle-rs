@@ -118,13 +118,15 @@ pub struct DeclImpl {
 
 impl Eval for DeclImpl {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
+
         match &self.object {
             Some(x) => {
                 let object = vm.get_object_from_value(&x.eval(vm)?)?;
                 object.get_member_str(&self.target, vm)
             }
             None => {
-                Ok(Value::ObjectReference(vm.get_object_id(vm.to_symbol(self.target.as_str()))?))
+                let sym = vm.to_symbol(self.target.as_str());
+                vm.get_value_in_scope(sym)
             }
         }
     }

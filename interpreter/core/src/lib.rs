@@ -100,24 +100,36 @@ mod tests {
                 &vec![],
             ));
 
-        let walk2_body = ASTNode::new_method_call(
-            "歩く", &ASTNode::new_decl(&None, "かめた"), &vec![ASTNode::StaticValue(Value::Num(100.0))]
-        );
+        vm.eval(&turtle_create).unwrap();
+
+        let walk2_body = vec![
+            ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::new_decl(&None, "歩幅")],
+            ),
+            ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::new_decl(&None, "歩幅")],
+            ),
+        ];
 
         vm.eval(
             &ASTNode::new_assign(
                 &Some(ASTNode::new_decl(&None, "かめた")),
                 "歩く２",
                 &ASTNode::new_block_define(
-                    &vec![],
-                    &vec![turtle_create])
+                    &vec!["歩幅"],
+                    &walk2_body)
             )
-        );
+        ).unwrap();
 
         let before_exec = vm.object_heap_borrow().len();
-        vm.eval(&ASTNode::new_method_call("実行",
-                                          &ASTNode::new_decl(&None, "なでこ"), &vec![]));
-
-        assert_eq!(vm.object_heap_borrow().len(), before_exec + 1);
+        vm.eval(&ASTNode::new_method_call(
+            "歩く２",
+            &ASTNode::new_decl(&None, "かめた"),
+            &vec![ASTNode::new_value_static(&Value::Num(100.0))])
+        ).unwrap();
     }
 }
