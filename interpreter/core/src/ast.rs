@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::vm::VirtualMachine;
 use std::fmt::Debug;
 use std::ops::Deref;
-use crate::object::ObjectBody;
+use crate::object::{ObjectBody, Object};
 
 pub trait Eval: Debug {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value>;
@@ -16,7 +16,7 @@ pub enum ASTNode {
     Assign(AssignImpl),
     Decl(DeclImpl),
     StaticValue(Value),
-    BlockDefine(BlockDefineImpl)
+    BlockDefine(BlockDefineImpl),
 }
 
 impl Eval for ASTNode {
@@ -40,15 +40,17 @@ impl ASTNode {
         })
     }
 
-    pub fn new_assign(target: String, value_node: Rc<ASTNode>) -> Self {
+    pub fn new_assign(object: Option<Rc<ASTNode>>, target: String, value_node: Rc<ASTNode>) -> Self {
         Self::Assign(AssignImpl {
+            object,
             target,
             value_node,
         })
     }
 
-    pub fn new_decl(target: String) -> Self {
+    pub fn new_decl(object: Option<Rc<ASTNode>>, target: String) -> Self {
         Self::Decl(DeclImpl {
+            object,
             target
         })
     }
@@ -84,6 +86,7 @@ impl Eval for MethodCallImpl {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AssignImpl {
+    pub object: Option<Rc<ASTNode>>,
     pub target: String,
     pub value_node: Rc<ASTNode>,
 }
@@ -91,19 +94,38 @@ pub struct AssignImpl {
 impl Eval for AssignImpl {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
         let value = self.value_node.eval(vm)?;
-        vm.assign(vm.to_symbol(self.target.as_str()), &value)?;
-        Ok(Value::Null)
+        let target = vm.to_symbol(self.target.as_str());
+        match &self.object {
+            Some(x) => {
+                let object = vm.get_object_from_value(&x.eval(vm)?)?;
+                object.set_member(target, value);
+                Ok(Value::Null)
+            }
+            None => {
+                vm.assign(target, &value)?;
+                Ok(Value::Null)
+            }
+    }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DeclImpl {
+    pub object: Option<Rc<ASTNode>>,
     pub target: String,
 }
 
 impl Eval for DeclImpl {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
-        Ok(Value::ObjectReference(vm.get_object_id(vm.to_symbol(self.target.as_str()))?))
+        match &self.object {
+            Some(x) => {
+                let object = vm.get_object_from_value(&x.eval(vm)?)?;
+                object.get_member_str(&self.target, vm)
+            }
+            None => {
+                Ok(Value::ObjectReference(vm.get_object_id(vm.to_symbol(self.target.as_str()))?))
+            }
+        }
     }
 }
 

@@ -117,7 +117,7 @@ fn assign(input: &str) -> IResult<&str, ASTNode> {
         equal,
         form,
     ),
-        |(sym, value)| ASTNode::new_assign(sym, Rc::new(value))
+        |(sym, value)| ASTNode::new_assign(None, sym, Rc::new(value))
     )(input)
 }
 
@@ -136,7 +136,7 @@ fn term(input: &str) -> IResult<&str, ASTNode> {
 fn decl(input: &str) -> IResult<&str, ASTNode> {
     map(
         symbol,
-        |(symbol_id)| ASTNode::new_decl(symbol_id))(input)
+        |(symbol_id)| ASTNode::new_decl(None, symbol_id))(input)
 }
 
 fn num(input: &str) -> IResult<&str, core::types::Value> {
@@ -241,8 +241,8 @@ mod tests {
     }
 
     #[rstest(input, expected,
-        case("かめた", Ok(("", ASTNode::new_decl("かめた".to_string())))),
-        case("かめた！", Ok(("！", ASTNode::new_decl("かめた".to_string())))),
+        case("かめた", Ok(("", ASTNode::new_decl(None, "かめた".to_string())))),
+        case("かめた！", Ok(("！", ASTNode::new_decl(None, "かめた".to_string())))),
     )]
     fn parse_decl(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(decl(input), expected);
@@ -252,7 +252,7 @@ mod tests {
         case("タートル！作る", Ok(
         (
             "",
-            ASTNode::new_method_call("作る".to_string(), ASTNode::new_decl("タートル".to_string()), vec![])
+            ASTNode::new_method_call("作る".to_string(), ASTNode::new_decl(None, "タートル".to_string()), vec![])
         )))
     )]
     fn parse_method_call(input: &str, expected: IResult<&str, ASTNode>) {
@@ -264,10 +264,11 @@ mod tests {
         assert_eq!(
             term("かめた＝タートル！作る。"),
             Ok(("", ASTNode::new_assign(
+                None,
                 "かめた".to_string(),
                 Rc::new(ASTNode::new_method_call(
                     "作る".to_string(),
-                    ASTNode::new_decl("タートル".to_string()),
+                    ASTNode::new_decl(None, "タートル".to_string()),
                     vec![]
                 ))
             )))
@@ -280,7 +281,9 @@ mod tests {
             term("かめた！１００　歩く。"),
             Ok(("", ASTNode::new_method_call(
                 "歩く".to_string(),
-                ASTNode::new_decl("かめた".to_string()),
+                ASTNode::new_decl(
+                    None,
+                    "かめた".to_string()),
                 vec![
                     ASTNode::new_value_static(Value::Num(100.0)),
             ])))
@@ -292,7 +295,7 @@ mod tests {
         assert_eq!(term("かめた！１００　歩く　９０　右回り。"),
                    Ok(("", ASTNode::new_method_call("右回り".to_string(), ASTNode::new_method_call(
                        "歩く".to_string(),
-                       ASTNode::new_decl("かめた".to_string()),
+                       ASTNode::new_decl(None, "かめた".to_string()),
                        vec![
                            ASTNode::new_value_static(Value::Num(100.0)),
                        ]), vec![ASTNode::new_value_static(Value::Num(90.0))]))));
@@ -301,7 +304,7 @@ mod tests {
     #[test]
     fn awesome_check() {
         let target = "タートル！作る";
-        assert_eq!(decl(target), Ok(("！作る", ASTNode::new_decl("タートル".to_string()))));
+        assert_eq!(decl(target), Ok(("！作る", ASTNode::new_decl(None, "タートル".to_string()))));
 
         assert_eq!("１００".parse_unicode(), Ok(100usize));
 
