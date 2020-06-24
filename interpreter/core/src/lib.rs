@@ -42,9 +42,9 @@ mod tests {
         let vm = setup();
         assert_eq!(vm.object_heap_borrow().len(), 2);
         ASTNode::new_method_call(
-            "作る".to_string(),
-            ASTNode::new_decl(None, "ルート".to_string()),
-            vec![],
+            "作る",
+            &ASTNode::new_decl(&None, "ルート"),
+            &vec![],
         ).eval(&vm);
 
         assert_eq!(vm.object_heap_borrow().len(), 3);
@@ -55,9 +55,9 @@ mod tests {
         let vm = setup();
         assert_eq!(vm.object_heap_borrow().len(), 2);
         ASTNode::new_method_call(
-            "作る".to_string(),
-            ASTNode::new_decl(None, "タートル".to_string()),
-            vec![],
+            "作る",
+            &ASTNode::new_decl(&None, "タートル"),
+            &vec![],
         ).eval(&vm);
 
         assert_eq!(vm.object_heap_borrow().len(), 3);
@@ -69,19 +69,19 @@ mod tests {
         vm.initialize();
 
         let turtle_create = ASTNode::new_method_call(
-            "作る".to_string(),
-            ASTNode::new_decl(None, "タートル".to_string()),
-            vec![],
+            "作る",
+            &ASTNode::new_decl(&None, "タートル"),
+            &vec![],
         );
 
         vm.eval(
-            &ASTNode::new_assign(None, "なでこ".to_string(),
-                                Rc::new(ASTNode::new_block_define(&vec![], &turtle_create)))
+            &ASTNode::new_assign(&None, "なでこ",
+                                &ASTNode::new_block_define(&vec![], &turtle_create))
         );
 
         let before_exec = vm.object_heap_borrow().len();
-        vm.eval(&ASTNode::new_method_call("実行".to_string(),
-                                          ASTNode::new_decl(None, "なでこ".to_string()), vec![]));
+        vm.eval(&ASTNode::new_method_call("実行",
+                                          &ASTNode::new_decl(&None, "なでこ"), &vec![]));
 
         assert_eq!(vm.object_heap_borrow().len(), before_exec + 1);
     }
@@ -91,22 +91,25 @@ mod tests {
         let mut vm = VirtualMachine::new();
         vm.initialize();
 
-        let turtle_create = ASTNode::new_assign(None, "かめた".to_string(), Rc::new(ASTNode::new_method_call(
-            "作る".to_string(),
-            ASTNode::new_decl(None, "タートル".to_string()),
-            vec![],
-        )));
+        let turtle_create = ASTNode::new_assign(
+            &None, "かめた",
+            &ASTNode::new_method_call(
+                "作る",
+                &ASTNode::new_decl(&None, "タートル"),
+                &vec![],
+            ));
 
-        vm.eval(&turtle_create);
 
         vm.eval(
-            &ASTNode::new_assign(None, "なでこ".to_string(),
-                                 Rc::new(ASTNode::new_block_define(&vec![], &turtle_create)))
+            &ASTNode::new_assign(
+                &Some(ASTNode::new_decl(&None, "かめた")),
+                "歩く２",
+                &ASTNode::new_block_define(&vec![], &turtle_create))
         );
 
         let before_exec = vm.object_heap_borrow().len();
-        vm.eval(&ASTNode::new_method_call("実行".to_string(),
-                                          ASTNode::new_decl(None, "なでこ".to_string()), vec![]));
+        vm.eval(&ASTNode::new_method_call("実行",
+                                          &ASTNode::new_decl(&None, "なでこ"), &vec![]));
 
         assert_eq!(vm.object_heap_borrow().len(), before_exec + 1);
     }

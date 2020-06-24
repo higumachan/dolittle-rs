@@ -32,36 +32,37 @@ impl Eval for ASTNode {
 }
 
 impl ASTNode {
-    pub fn new_method_call(method: String, object: ASTNode, args: Vec<ASTNode>) -> Self {
+    pub fn new_method_call(method: &str, object: &ASTNode, args: &Vec<ASTNode>) -> Self {
         Self::MethodCall(MethodCallImpl {
-            method,
-            object: Rc::new(object),
-            args: args.into_iter().map(|x| Rc::new(x)).collect(),
+            method: method.to_string(),
+            object: Rc::new(object.clone()),
+            args: args.into_iter().map(|x| Rc::new(x.clone())).collect(),
         })
     }
 
-    pub fn new_assign(object: Option<Rc<ASTNode>>, target: String, value_node: Rc<ASTNode>) -> Self {
+    pub fn new_assign(object: &Option<ASTNode>, target: &str, value_node: &ASTNode) -> Self {
         Self::Assign(AssignImpl {
-            object,
-            target,
-            value_node,
+            object: object.as_ref().map(|x| Rc::new(x.clone())),
+            target: target.to_string(),
+            value_node: Rc::new(value_node.clone()),
         })
     }
 
-    pub fn new_decl(object: Option<Rc<ASTNode>>, target: String) -> Self {
+    pub fn new_decl(object: &Option<ASTNode>, target: &str) -> Self {
+        let object = object.as_ref().map(|x| Rc::new(x.clone()));
         Self::Decl(DeclImpl {
             object,
-            target
+            target: target.to_string(),
         })
     }
 
-    pub fn new_value_static(value: Value) -> Self {
-        Self::StaticValue(value)
+    pub fn new_value_static(value: &Value) -> Self {
+        Self::StaticValue(value.clone())
     }
 
-    pub fn new_block_define(virtual_args: &Vec<String>, body: &ASTNode) -> Self {
+    pub fn new_block_define(virtual_args: &Vec<&str>, body: &ASTNode) -> Self {
         Self::BlockDefine(BlockDefineImpl {
-            virtual_args: virtual_args.clone(),
+            virtual_args: virtual_args.iter().map(|x| x.to_string()).collect(),
             body: Rc::new(body.clone()),
         })
     }
