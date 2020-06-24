@@ -34,9 +34,9 @@ impl VirtualMachine {
         ast.eval(self)
     }
 
-    pub fn push_stack(&self, virtual_args: &Vec<String>, real_args: &Vec<Value>) {
+    pub fn push_stack(&self, dummy_args: &Vec<String>, real_args: &Vec<Value>) {
         let mut s = HashMap::new();
-        for (va, ra) in virtual_args.iter().zip(real_args.iter()) {
+        for (va, ra) in dummy_args.iter().zip(real_args.iter()) {
             s.insert(self.to_symbol(va), ra.clone());
         }
         self.stack.borrow_mut().push(s);

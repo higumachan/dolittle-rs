@@ -60,9 +60,9 @@ impl ASTNode {
         Self::StaticValue(value.clone())
     }
 
-    pub fn new_block_define(virtual_args: &Vec<&str>, body: &Vec<ASTNode>) -> Self {
+    pub fn new_block_define(dummy_args: &Vec<&str>, body: &Vec<ASTNode>) -> Self {
         Self::BlockDefine(BlockDefineImpl {
-            virtual_args: virtual_args.iter().map(|x| x.to_string()).collect(),
+            dummy_args: dummy_args.iter().map(|x| x.to_string()).collect(),
             body: body.clone().into_iter().map(|x| Rc::new(x)).collect(),
         })
     }
@@ -132,7 +132,7 @@ impl Eval for DeclImpl {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockDefineImpl {
-    pub virtual_args: Vec<String>,
+    pub dummy_args: Vec<String>,
     pub body: Vec<Rc<ASTNode>>,
 }
 
@@ -140,7 +140,7 @@ impl Eval for BlockDefineImpl {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
         let block_obj_value = vm.get_block_object_value()?;
         crate::object::block::create(&block_obj_value,
-                                     &self.virtual_args,
+                                     &self.dummy_args,
                                      &self.body,
                                      vm)
     }

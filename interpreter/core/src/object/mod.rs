@@ -195,12 +195,12 @@ pub mod block {
 
     type BlockInternalValue = (Vec<String>, Vec<Rc<ASTNode>>);
 
-    pub fn create(this: &Value, virtual_args: &Vec<String>,
+    pub fn create(this: &Value, dummy_args: &Vec<String>,
                   body: &Vec<Rc<ASTNode>>, vm: &VirtualMachine) -> Result<Value> {
         let obj_value: Value = super::root::create(this, &vec![], vm)?;
         let obj: Rc<super::Object> = vm.get_object_from_value(&obj_value)?;
         let v = Rc::new(
-            (virtual_args.clone(),
+            (dummy_args.clone(),
              body.clone()
             ));
         obj.set_internal_value(v);
@@ -210,8 +210,8 @@ pub mod block {
     pub fn exec(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let this_obj = vm.get_object_from_value(this)?;
         let t = this_obj.get_internal_value::<BlockInternalValue>();
-        let (virtual_args, body) = t.borrow();
-        vm.push_stack(virtual_args, args);
+        let (dummy_args, body) = t.borrow();
+        vm.push_stack(dummy_args, args);
         let mut result = Value::Null;
         for b in body.iter() {
             result = vm.eval(b)?;

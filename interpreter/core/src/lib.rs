@@ -108,7 +108,10 @@ mod tests {
             &ASTNode::new_assign(
                 &Some(ASTNode::new_decl(&None, "かめた")),
                 "歩く２",
-                &ASTNode::new_block_define(&vec![], &vec![turtle_create]))
+                &ASTNode::new_block_define(
+                    &vec![],
+                    &vec![turtle_create])
+            )
         );
 
         let before_exec = vm.object_heap_borrow().len();
