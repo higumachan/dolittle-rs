@@ -9,7 +9,7 @@ use std::rc::Rc;
 use core::ast::ASTNode;
 use nom::sequence::{terminated, separated_pair, delimited};
 use unicode_num::ParseUnicodeExt;
-use nom::combinator::{iterator, complete};
+use nom::combinator::{iterator, complete, opt};
 use nom::multi::many1;
 use nom::bytes::complete::{take_until, take_till};
 use nom::Err::Error;
@@ -35,7 +35,9 @@ enum SpecialToken {
     CloseParentheses,
     OpenAngles,
     CloseAngles,
+    Pipe,
     EndOfTerm,
+    Comma,
 }
 
 fn exclamation(input: &str) -> IResult<&str, SpecialToken> {
@@ -58,11 +60,33 @@ fn close_parentheses(input: &str) -> IResult<&str, SpecialToken> {
     value(SpecialToken::CloseParentheses, alt((tag(")"), tag(")"))))(input)
 }
 
+fn open_angles(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::OpenAngles, alt(
+        (tag("「"), tag("["),)
+    ))(input)
+}
+
+fn close_angles(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::CloseAngles, alt(
+        (tag("」"), tag("]"),)
+    ))(input)
+}
+
+fn pipe(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Pipe, alt(
+        (tag("｜"), tag("|"),)
+    ))(input)
+}
+
+fn comma(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Comma, alt(
+        (tag("、"), tag(","),)
+    ))(input)
+}
+
 fn specials(input: &str) -> IResult<&str, SpecialToken> {
     let plus = value(SpecialToken::Plus, alt((tag("+"), tag("＋"))));
     let minus = value(SpecialToken::Minus, (tag("-")));
-    let open_angles = value(SpecialToken::OpenAngles ,alt((tag("["), tag("｢"))));
-    let close_angles = value(SpecialToken::CloseAngles, alt((tag("]"), tag("｣"))));
 
     alt((
         plus,
@@ -74,8 +98,11 @@ fn specials(input: &str) -> IResult<&str, SpecialToken> {
         close_parentheses,
         open_angles,
         close_angles,
+        comma,
+        pipe,
     ))(input)
 }
+
 
 fn not_symbol(input: &str) -> IResult<&str, ()> {
     value((), alt((
@@ -83,6 +110,7 @@ fn not_symbol(input: &str) -> IResult<&str, ()> {
         nom_unicode::complete::space1,
     )))(input)
 }
+
 
 fn symbol(input: &str) -> IResult<&str, String> {
     map(tuple((
@@ -107,6 +135,7 @@ fn form(input: &str) -> IResult<&str, ASTNode> {
         (
             method_call,
             num_value_static,
+            decl,
         )
     )(input)
 }
@@ -173,7 +202,10 @@ fn method_call(input: &str) -> IResult<&str, ASTNode> {
     let parse_method_calls = tuple((
         preceded(
             nom_unicode::complete::space0,
-            many0(terminated(single_value_without_decl, nom_unicode::complete::space1)),
+            many0(terminated(
+                single_value_without_decl,
+                nom_unicode::complete::space1
+            )),
         ),
         symbol,
     )
@@ -194,10 +226,46 @@ fn method_call(input: &str) -> IResult<&str, ASTNode> {
     })(input)
 }
 
+fn dummy_args_list(input: &str) -> IResult<&str, Vec<String>> {
+    delimited(pipe,
+    map(opt(map(tuple((
+        symbol,
+        many0(preceded(tuple((
+            nom_unicode::complete::space0,
+            comma,
+            nom_unicode::complete::space0,
+        )), symbol))
+    )), |(first, mut remain)| {
+        remain.insert(0, first);
+        remain
+    })), |x| x.unwrap_or(vec![])),
+pipe)(input)
+}
+
+fn block(input: &str) -> IResult<&str, ASTNode> {
+    map(delimited(
+        open_angles,
+        tuple((
+            dummy_args_list,
+            preceded(
+                nom_unicode::complete::space0,
+                many0(
+                    terminated(term, nom_unicode::complete::space0))
+            ),
+        )),
+        close_angles,
+    ), |(dummy_args, terms)| {
+        ASTNode::new_block_define(
+            &dummy_args.iter().map(|x| x.as_str()).collect(),
+            &terms
+        )
+    })(input)
+}
+
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call, parse_program_code};
+    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call, parse_program_code, block, dummy_args_list};
     use nom::{
         IResult,
         Err,
@@ -254,10 +322,42 @@ mod tests {
         (
             "",
             ASTNode::new_method_call("作る", &ASTNode::new_decl(&None, "タートル"), &vec![])
+        ))),
+        case("かめた！(歩幅)　歩く", Ok((
+            "",
+            ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::new_decl(&None, "歩幅")]
+            )
         )))
     )]
     fn parse_method_call(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(method_call(input), expected);
+    }
+
+    #[rstest(input, expected,
+        case("｜歩幅｜", Ok(("", vec!["歩幅".to_string()]))),
+        case("|歩幅|", Ok(("", vec!["歩幅".to_string()]))),
+        case("|歩幅, 角度|", Ok(("", vec!["歩幅".to_string(), "角度".to_string()]))),
+    )]
+    fn test_dummy_args_list(input: &str, expected: IResult<&str, Vec<String>>) {
+        assert_eq!(dummy_args_list(input), expected);
+    }
+
+    #[rstest(input, expected,
+        case("「|歩幅| かめた！(歩幅)　歩く。」", Ok(
+        (
+            "",
+            ASTNode::new_block_define(&vec!["歩幅"], &vec![ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::new_decl(&None, "歩幅")]
+            )])
+        )))
+    )]
+    fn test_block(input: &str, expected: IResult<&str, ASTNode>) {
+        assert_eq!(block(input), expected);
     }
 
     #[test]
@@ -300,6 +400,23 @@ mod tests {
                        &vec![
                            ASTNode::new_value_static(&Value::Num(100.0)),
                        ]), &vec![ASTNode::new_value_static(&Value::Num(90.0))]))));
+    }
+
+    #[test]
+    fn method_assign_test() {
+        let target = "かめた：歩く２＝「｜N｜　かめた！N　歩く。　かめた！N　歩く。」。";
+        assert_eq!(term(target), Ok(("", ASTNode::new_assign(
+            &Some(ASTNode::new_decl(&None, "かめた")), "歩く２", &ASTNode::new_block_define(
+                &vec!["N"], &vec![
+                    ASTNode::new_method_call("歩く",
+                                             &ASTNode::new_decl(&None, "かめた"),
+                                             &vec![ASTNode::new_decl(&None, "N")]),
+                    ASTNode::new_method_call("歩く",
+                                             &ASTNode::new_decl(&None, "かめた"),
+                                             &vec![ASTNode::new_decl(&None, "N")]),
+                ]
+            )
+        ))));
     }
 
     #[test]
