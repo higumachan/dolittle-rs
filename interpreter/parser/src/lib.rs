@@ -176,7 +176,7 @@ fn num(input: &str) -> IResult<&str, core::types::Value> {
 }
 
 fn num_value_static(input: &str) -> IResult<&str, ASTNode> {
-    map(num, |x| ASTNode::new_value_static(&x))(input)
+    map(num, |x| ASTNode::new_static_value(&x))(input)
 }
 
 fn single_value(input: &str) -> IResult<&str, ASTNode> {
@@ -354,7 +354,25 @@ mod tests {
                 &ASTNode::new_decl(&None, "かめた"),
                 &vec![ASTNode::new_decl(&None, "歩幅")]
             )])
-        )))
+        ))),
+        case("「|歩幅|かめた！(歩幅)　歩く。」", Ok(
+        (
+            "",
+            ASTNode::new_block_define(&vec!["歩幅"], &vec![ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::new_decl(&None, "歩幅")]
+            )])
+        ))),
+        case("「||かめた！100　歩く。」", Ok(
+        (
+            "",
+            ASTNode::new_block_define(&vec![], &vec![ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::new_static_value(&Value::Num(100.0))]
+            )])
+        ))),
     )]
     fn test_block(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(block(input), expected);
@@ -386,7 +404,7 @@ mod tests {
                     &None,
                     "かめた"),
                 &vec![
-                    ASTNode::new_value_static(&Value::Num(100.0)),
+                    ASTNode::new_static_value(&Value::Num(100.0)),
             ])))
         );
     }
@@ -398,8 +416,8 @@ mod tests {
                        "歩く",
                        &ASTNode::new_decl(&None, "かめた"),
                        &vec![
-                           ASTNode::new_value_static(&Value::Num(100.0)),
-                       ]), &vec![ASTNode::new_value_static(&Value::Num(90.0))]))));
+                           ASTNode::new_static_value(&Value::Num(100.0)),
+                       ]), &vec![ASTNode::new_static_value(&Value::Num(90.0))]))));
     }
 
     #[test]
@@ -427,6 +445,6 @@ mod tests {
         assert_eq!("１００".parse_unicode(), Ok(100usize));
 
         assert_eq!(form("１００"), Ok(("",
-                                   ASTNode::new_value_static(&Value::Num(100.0)))));
+                                   ASTNode::new_static_value(&Value::Num(100.0)))));
     }
 }

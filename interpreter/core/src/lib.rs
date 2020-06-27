@@ -129,7 +129,7 @@ mod tests {
         vm.eval(&ASTNode::new_method_call(
             "歩く２",
             &ASTNode::new_decl(&None, "かめた"),
-            &vec![ASTNode::new_value_static(&Value::Num(100.0))])
+            &vec![ASTNode::new_static_value(&Value::Num(100.0))])
         ).unwrap();
     }
 }

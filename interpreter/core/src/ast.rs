@@ -56,7 +56,7 @@ impl ASTNode {
         })
     }
 
-    pub fn new_value_static(value: &Value) -> Self {
+    pub fn new_static_value(value: &Value) -> Self {
         Self::StaticValue(value.clone())
     }
 
