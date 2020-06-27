@@ -38,6 +38,7 @@ enum SpecialToken {
     Pipe,
     EndOfTerm,
     Comma,
+    Colon,
 }
 
 fn exclamation(input: &str) -> IResult<&str, SpecialToken> {
@@ -84,6 +85,12 @@ fn comma(input: &str) -> IResult<&str, SpecialToken> {
     ))(input)
 }
 
+fn colon(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Colon, alt(
+        (tag("："), tag(":"))
+    ))(input)
+}
+
 fn specials(input: &str) -> IResult<&str, SpecialToken> {
     let plus = value(SpecialToken::Plus, alt((tag("+"), tag("＋"))));
     let minus = value(SpecialToken::Minus, (tag("-")));
@@ -100,6 +107,7 @@ fn specials(input: &str) -> IResult<&str, SpecialToken> {
         close_angles,
         comma,
         pipe,
+        colon,
     ))(input)
 }
 
@@ -134,20 +142,28 @@ fn form(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
             method_call,
-            num_value_static,
+            num_static_value,
+            block,
             decl,
         )
     )(input)
 }
 
+fn symbol_or_member(input: &str) -> IResult<&str, (Option<ASTNode>, String)> {
+    alt((
+        map(tuple((terminated(form, colon), symbol)), |(x, y)| (Some(x), y)),
+        map(symbol, |x| (None, x)),
+    ))(input)
+}
+
 fn assign(input: &str) -> IResult<&str, ASTNode> {
     map(separated_pair(
-        symbol,
+        symbol_or_member,
         equal,
         form,
     ),
-        |(sym, value)| ASTNode::new_assign(
-            &None, sym.as_str(), &value)
+        |((object_ast, sym), value)| ASTNode::new_assign(
+            &object_ast, sym.as_str(), &value)
     )(input)
 }
 
@@ -175,14 +191,14 @@ fn num(input: &str) -> IResult<&str, core::types::Value> {
     })(input)
 }
 
-fn num_value_static(input: &str) -> IResult<&str, ASTNode> {
+fn num_static_value(input: &str) -> IResult<&str, ASTNode> {
     map(num, |x| ASTNode::new_static_value(&x))(input)
 }
 
 fn single_value(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
-            num_value_static,
+            num_static_value,
             decl,
             delimited(open_parentheses, form, close_parentheses)
         )
@@ -192,7 +208,7 @@ fn single_value(input: &str) -> IResult<&str, ASTNode> {
 fn single_value_without_decl(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
-            num_value_static,
+            num_static_value,
             delimited(open_parentheses, form, close_parentheses)
         )
     )(input)
@@ -265,7 +281,7 @@ fn block(input: &str) -> IResult<&str, ASTNode> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call, parse_program_code, block, dummy_args_list};
+    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call, parse_program_code, block, dummy_args_list, symbol_or_member, assign};
     use nom::{
         IResult,
         Err,
@@ -341,7 +357,7 @@ mod tests {
         case("|歩幅|", Ok(("", vec!["歩幅".to_string()]))),
         case("|歩幅, 角度|", Ok(("", vec!["歩幅".to_string(), "角度".to_string()]))),
     )]
-    fn test_dummy_args_list(input: &str, expected: IResult<&str, Vec<String>>) {
+    fn parse_dummy_args_list(input: &str, expected: IResult<&str, Vec<String>>) {
         assert_eq!(dummy_args_list(input), expected);
     }
 
@@ -374,8 +390,17 @@ mod tests {
             )])
         ))),
     )]
-    fn test_block(input: &str, expected: IResult<&str, ASTNode>) {
+    fn parse_block(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(block(input), expected);
+    }
+
+    #[rstest(input, expected,
+        case("X", Ok(("", (None, "X".to_string())))),
+        case("かめた：X", Ok(("", (Some(ASTNode::new_decl(&None, "かめた")), "X".to_string())))),
+        case("かめた：歩く２", Ok(("", (Some(ASTNode::new_decl(&None, "かめた")), "歩く２".to_string())))),
+    )]
+    fn parse_symbol_or_member(input: &str, expected: IResult<&str, (Option<ASTNode>, String)>) {
+        assert_eq!(symbol_or_member(input), expected);
     }
 
     #[test]
@@ -420,9 +445,20 @@ mod tests {
                        ]), &vec![ASTNode::new_static_value(&Value::Num(90.0))]))));
     }
 
+    #[rstest(input, expected,
+        case("かめた：歩幅＝１００", Ok(("", ASTNode::new_assign(
+            &Some(ASTNode::new_decl(&None, "かめた")),
+            "歩幅",
+            &ASTNode::new_static_value(&Value::Num(100.0)),
+        )))),
+    )]
+    fn parse_assign(input: &str, expected: IResult<&str, ASTNode>) {
+        assert_eq!(assign(input), expected);
+    }
+
     #[test]
     fn method_assign_test() {
-        let target = "かめた：歩く２＝「｜N｜　かめた！N　歩く。　かめた！N　歩く。」。";
+        let target = "かめた：歩く２＝「｜N｜　かめた！(N)　歩く。　かめた！(N)　歩く。」。";
         assert_eq!(term(target), Ok(("", ASTNode::new_assign(
             &Some(ASTNode::new_decl(&None, "かめた")), "歩く２", &ASTNode::new_block_define(
                 &vec!["N"], &vec![
