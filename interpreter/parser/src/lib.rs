@@ -149,9 +149,18 @@ fn form(input: &str) -> IResult<&str, ASTNode> {
     )(input)
 }
 
+fn symbol_or_parentheses_form(input: &str) -> IResult<&str, ASTNode> {
+    alt(
+        (
+            map(symbol, |x| ASTNode::new_decl(&None, x.as_str())),
+            delimited(open_parentheses, form, close_parentheses),
+        )
+    )(input)
+}
+
 fn symbol_or_member(input: &str) -> IResult<&str, (Option<ASTNode>, String)> {
     alt((
-        map(tuple((terminated(form, colon), symbol)), |(x, y)| (Some(x), y)),
+        map(tuple((terminated(symbol_or_parentheses_form, colon), symbol)), |(x, y)| (Some(x), y)),
         map(symbol, |x| (None, x)),
     ))(input)
 }
@@ -181,8 +190,10 @@ fn term(input: &str) -> IResult<&str, ASTNode> {
 
 fn decl(input: &str) -> IResult<&str, ASTNode> {
     map(
-        symbol,
-        |(symbol_id)| ASTNode::new_decl(&None, &symbol_id))(input)
+        symbol_or_member,
+        |(object_ast, symbol_id)| {
+            ASTNode::new_decl(&object_ast, &symbol_id)
+        })(input)
 }
 
 fn num(input: &str) -> IResult<&str, core::types::Value> {
@@ -195,6 +206,7 @@ fn num_static_value(input: &str) -> IResult<&str, ASTNode> {
     map(num, |x| ASTNode::new_static_value(&x))(input)
 }
 
+
 fn single_value(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
@@ -204,6 +216,7 @@ fn single_value(input: &str) -> IResult<&str, ASTNode> {
         )
     )(input)
 }
+
 
 fn single_value_without_decl(input: &str) -> IResult<&str, ASTNode> {
     alt(
@@ -328,6 +341,7 @@ mod tests {
     #[rstest(input, expected,
         case("かめた", Ok(("", ASTNode::new_decl(&None, "かめた")))),
         case("かめた！", Ok(("！", ASTNode::new_decl(&None, "かめた")))),
+        case("かめた:歩幅", Ok(("", ASTNode::new_decl(&Some(ASTNode::new_decl(&None, "かめた")), "歩幅")))),
     )]
     fn parse_decl(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(decl(input), expected);
