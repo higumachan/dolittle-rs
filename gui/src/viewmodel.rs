@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use interpreter::Interpreter;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use core::object::Object;
 use std::cell::RefCell;
 
@@ -33,12 +33,12 @@ pub trait ViewModel {
 }
 
 pub struct InterpreterViewModel {
-    model: Arc<RefCell<Interpreter>>,
+    model: Arc<RwLock<Interpreter>>,
 }
 
 impl ViewModel for InterpreterViewModel {
     fn visual_objects(&self) -> Vec<VisualObject> {
-        let model = self.model.borrow();
+        let model = self.model.read().unwrap();
         let x = model.get_symbol("x");
         let y = model.get_symbol("y");
         let x1 = model.get_symbol("x1");
@@ -71,7 +71,7 @@ impl ViewModel for InterpreterViewModel {
 }
 
 impl InterpreterViewModel {
-    pub fn new(interpreter: Arc<RefCell<Interpreter>>) -> Self {
+    pub fn new(interpreter: Arc<RwLock<Interpreter>>) -> Self {
         Self {
             model: interpreter,
         }

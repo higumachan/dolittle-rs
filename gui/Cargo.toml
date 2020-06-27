@@ -14,3 +14,4 @@ piston2d-opengl_graphics = "0.72.0"
 find_folder = "0.3.0"
 interpreter = { path = "../interpreter"}
 core = { path = "../interpreter/core"}
+tokio = { version = "0.2", features = ["full"] }

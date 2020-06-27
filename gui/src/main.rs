@@ -5,6 +5,11 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
+use tokio::time::delay_for;
+use tokio::io::{stdin, BufReader, AsyncBufReadExt};
+use tokio::{pin, select};
+use std::time::Duration;
+
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL, Texture, TextureSettings};
 use piston::event_loop::{EventSettings, Events};
@@ -17,7 +22,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use graphics::math::Matrix2d;
 use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 pub struct TextureLoader {
     assets: PathBuf,
@@ -111,18 +116,36 @@ impl<VM: ViewModel> App<VM> {
     }
 }
 
-fn main() {
+async fn repl(interpreter: Arc<RwLock<Interpreter>>) {
+    let mut s = String::new();
+    let mut stream = BufReader::new(stdin());
+    loop {
+        stream.read_line(&mut s).await.unwrap();
+        interpreter.write().unwrap().exec(s.as_str());
+        s = String::new();
+    }
+}
+
+async fn event_loop<VM: ViewModel>(mut app: App<VM>, mut events: Events, window: &mut Window) {
+    while let Some(e) = events.next(window) {
+        if let Some(args) = e.render_args() {
+            app.render(&args);
+        }
+
+        if let Some(args) = e.update_args() {
+            app.update(&args);
+        }
+
+        delay_for(Duration::from_millis(10)).await;
+    }
+}
+
+#[tokio::main]
+async fn main() {
     // Change this to OpenGL::V2_1 if not working.
     let opengl = OpenGL::V3_2;
-    let mut interpreter = Arc::new(RefCell::new(Interpreter::new()));
+    let mut interpreter = Arc::new(RwLock::new(Interpreter::new()));
 
-    interpreter.borrow_mut().exec(r#"かめた＝タートル！作る。
-かめた！１００　歩く 144　左回り。
-かめた！１００　歩く 144　左回り。
-かめた！１００　歩く 144　左回り。
-かめた！１００　歩く 144　左回り。
-かめた！１００　歩く 144　左回り。
-"#);
     let view_model = InterpreterViewModel::new(interpreter.clone());
 
     // Create an Glutin window.
@@ -145,14 +168,15 @@ fn main() {
         texture_loader,
     };
 
+    //repl(interpreter.clone()).await;
     let mut events = Events::new(EventSettings::new());
-    while let Some(e) = events.next(&mut window) {
-        if let Some(args) = e.render_args() {
-            app.render(&args);
-        }
 
-        if let Some(args) = e.update_args() {
-            app.update(&args);
-        }
+    let event_loop_feature = event_loop(app, events, &mut window);
+    pin!(event_loop_feature);
+    let repl_feature = repl(interpreter.clone());
+    pin!(repl_feature);
+    select! {
+        _ = &mut event_loop_feature => {}
+        _ = &mut repl_feature => {}
     }
 }
