@@ -222,6 +222,7 @@ fn single_value_without_decl(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
             num_static_value,
+            block,
             delimited(open_parentheses, form, close_parentheses)
         )
     )(input)
@@ -506,6 +507,7 @@ mod tests {
 
     #[test]
     fn awesome_check() {
+        /*
         let target = "タートル！作る";
         assert_eq!(decl(target), Ok(("！作る", ASTNode::new_decl(&None, "タートル"))));
 
@@ -515,5 +517,12 @@ mod tests {
                                    ASTNode::new_static_value(&Value::Num(100.0)))));
 
         assert_eq!(block("「|歩幅|かめた！(歩幅)　歩く (歩幅)　歩く。」").is_ok(), true);
+
+        assert_eq!(form("「||かめた！１００　歩く。」！４　繰り返す。").is_ok(), true);
+         */
+
+        assert_eq!(term(
+            "「｜長さ｜「｜｜ かめた！（長さ）　歩く。かめた！９０　右回り。」！４　繰り返す。」。"),
+                   Ok(("", ASTNode::new_static_value(&Value::Null))))
     }
 }

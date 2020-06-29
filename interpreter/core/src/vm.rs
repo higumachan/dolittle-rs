@@ -169,6 +169,11 @@ impl VirtualMachine {
                 object::block::exec
             );
 
+            block.add_method(
+                self.to_symbol("繰り返す"),
+                object::block::repeat,
+            );
+
             let block_symbol = self.to_symbol("ブロック");
             self.assign(block_symbol, &block_value).unwrap();
 

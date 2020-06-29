@@ -132,4 +132,38 @@ mod tests {
             &vec![ASTNode::new_static_value(&Value::Num(100.0))])
         ).unwrap();
     }
+
+    #[test]
+    fn test_repeat_4times() {
+        let mut vm = VirtualMachine::new();
+        vm.initialize();
+
+        let turtle_create = ASTNode::new_assign(
+            &None, "かめた",
+            &ASTNode::new_method_call(
+                "作る",
+                &ASTNode::new_decl(&None, "タートル"),
+                &vec![],
+            ));
+
+        vm.eval(&turtle_create).unwrap();
+        vm.eval(&ASTNode::new_method_call(
+            "繰り返す",
+            &ASTNode::new_block_define(&vec![], &vec![ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::StaticValue(Value::Num(100.0))],
+            )]),
+            &vec![ASTNode::StaticValue(Value::Num(4.0))],
+        )).unwrap();
+
+        assert_eq!(vm.eval(&ASTNode::new_decl(
+            &Some(ASTNode::new_decl(&None, "かめた")),
+                "x"
+        )).unwrap(), Value::Num(400.0));
+        assert_eq!(vm.eval(&ASTNode::new_decl(
+            &Some(ASTNode::new_decl(&None, "かめた")),
+            "y"
+        )).unwrap(), Value::Num(0.0));
+    }
 }

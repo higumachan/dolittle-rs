@@ -219,6 +219,22 @@ pub mod block {
         Ok(obj_value)
     }
 
+    pub fn repeat(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let n: f64 = args.first().ok_or(Error::Runtime)?.as_num()?;
+        if n.is_sign_negative() {
+            return Err(Error::Runtime);
+        }
+        let n = n.floor() as u64;
+        if n < 0 {
+            return Err(Error::Runtime);
+        }
+
+        for _ in 0..n-1 {
+            exec(this, &vec![], vm)?;
+        }
+        exec(this, &vec![], vm)
+    }
+
     pub fn exec(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let this_obj = vm.get_object_from_value(this)?;
         let t = this_obj.get_internal_value::<BlockInternalValue>();
