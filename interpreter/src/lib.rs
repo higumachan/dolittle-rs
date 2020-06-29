@@ -81,4 +81,21 @@ mod tests {
         assert!(kameta.get_member_str("visible", &vm).unwrap().as_bool().unwrap());
         assert_eq!(vm.get_object_heap().len(), 6);
     }
+
+    #[test]
+    fn test_kameta_square() {
+        let mut interpreter = Interpreter::new();
+
+        interpreter.exec(r#"かめた＝タートル！作る。
+かめた：四角＝「｜長さ｜ かめた！（長さ） 歩く。 かめた！９０ 右回り。」。
+かめた！１００　四角。"#);
+
+
+        let vm = interpreter.vm;
+        let kameta = vm.get_object_from_symbol("かめた").unwrap();
+        assert!(nearly_equal_with_eps(
+            100.0, kameta.get_member_str("x", &vm).unwrap().as_num().unwrap(), eps));
+        assert!(nearly_equal_with_eps(
+            0.0, kameta.get_member_str("y", &vm).unwrap().as_num().unwrap(), eps));
+    }
 }

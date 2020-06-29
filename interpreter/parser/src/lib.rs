@@ -9,7 +9,7 @@ use std::rc::Rc;
 use core::ast::ASTNode;
 use nom::sequence::{terminated, separated_pair, delimited};
 use unicode_num::ParseUnicodeExt;
-use nom::combinator::{iterator, complete, opt};
+use nom::combinator::{iterator, complete, opt, all_consuming};
 use nom::multi::many1;
 use nom::bytes::complete::{take_until, take_till};
 use nom::Err::Error;
@@ -17,12 +17,12 @@ use core::ast::ASTNode::MethodCall;
 use nom::character::complete::{line_ending};
 
 pub fn parse_program_code(input: &str) -> IResult<&str, Vec<ASTNode>> {
-    complete(many0(terminated(term, alt(
+    all_consuming(many0(terminated(term, many0(alt(
         (
-            nom_unicode::complete::space0,
+            nom_unicode::complete::space1,
             line_ending,
         )
-    ))))(input)
+    )))))(input)
 }
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Copy, Clone)]
@@ -58,7 +58,7 @@ fn open_parentheses(input: &str) -> IResult<&str, SpecialToken> {
 }
 
 fn close_parentheses(input: &str) -> IResult<&str, SpecialToken> {
-    value(SpecialToken::CloseParentheses, alt((tag(")"), tag(")"))))(input)
+    value(SpecialToken::CloseParentheses, alt((tag(")"), tag("）"))))(input)
 }
 
 fn open_angles(input: &str) -> IResult<&str, SpecialToken> {
@@ -311,6 +311,7 @@ mod tests {
     #[test]
     fn test_parse_program_code() {
         let result = parse_program_code(r#"かめた＝タートル！作る。
+
 かめた！１００　歩く。
 "#);
         assert!(result.is_ok());
@@ -393,6 +394,22 @@ mod tests {
                 &ASTNode::new_decl(&None, "かめた"),
                 &vec![ASTNode::new_decl(&None, "歩幅")]
             )])
+        ))),
+        case("「|歩幅|かめた！(歩幅)　歩く。かめた！ (歩幅)　歩く。」", Ok(
+        (
+            "",
+            ASTNode::new_block_define(&vec!["歩幅"], &vec![
+                ASTNode::new_method_call(
+                    "歩く",
+                    &ASTNode::new_decl(&None, "かめた"),
+                    &vec![ASTNode::new_decl(&None, "歩幅")]
+                ),
+                ASTNode::new_method_call(
+                    "歩く",
+                    &ASTNode::new_decl(&None, "かめた"),
+                    &vec![ASTNode::new_decl(&None, "歩幅")]
+                ),
+            ])
         ))),
         case("「||かめた！100　歩く。」", Ok(
         (
@@ -496,5 +513,7 @@ mod tests {
 
         assert_eq!(form("１００"), Ok(("",
                                    ASTNode::new_static_value(&Value::Num(100.0)))));
+
+        assert_eq!(block("「|歩幅|かめた！(歩幅)　歩く (歩幅)　歩く。」").is_ok(), true);
     }
 }
