@@ -211,6 +211,7 @@ fn single_value(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
             num_static_value,
+            block,
             decl,
             delimited(open_parentheses, form, close_parentheses)
         )
