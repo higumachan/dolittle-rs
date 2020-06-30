@@ -506,9 +506,27 @@ mod tests {
         ))));
     }
 
+    fn repeat_block_4times() {
+        let input = "「｜長さ｜「｜｜ かめた！（長さ）　歩く。かめた！９０　右回り。」！４　繰り返す。」。";
+        assert_eq!(term(input), Ok(("", ASTNode::new_block_define(
+            &vec!["長さ"], &vec![ASTNode::new_method_call(
+                "繰り返す",
+                &ASTNode::new_block_define(&vec![], &vec![
+                        ASTNode::new_method_call("歩く",
+                                              &ASTNode::new_decl(&None, "かめた"),
+                                              &vec![ASTNode::new_decl(&None, "長さ")]),
+                    ASTNode::new_method_call("右回り",
+                                              &ASTNode::new_decl(&None, "かめた"),
+                                              &vec![ASTNode::new_static_value(&Value::Num(90.0))]),
+                ]),
+                &vec![ASTNode::new_static_value(&Value::Num(4.0))],
+            )],
+        ),
+    )));
+    }
+
     #[test]
     fn awesome_check() {
-        /*
         let target = "タートル！作る";
         assert_eq!(decl(target), Ok(("！作る", ASTNode::new_decl(&None, "タートル"))));
 
@@ -520,10 +538,5 @@ mod tests {
         assert_eq!(block("「|歩幅|かめた！(歩幅)　歩く (歩幅)　歩く。」").is_ok(), true);
 
         assert_eq!(form("「||かめた！１００　歩く。」！４　繰り返す。").is_ok(), true);
-         */
-
-        assert_eq!(term(
-            "「｜長さ｜「｜｜ かめた！（長さ）　歩く。かめた！９０　右回り。」！４　繰り返す。」。"),
-                   Ok(("", ASTNode::new_static_value(&Value::Null))))
     }
 }
