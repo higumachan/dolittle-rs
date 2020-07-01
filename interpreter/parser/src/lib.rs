@@ -277,7 +277,7 @@ fn block(input: &str) -> IResult<&str, ASTNode> {
     map(delimited(
         open_angles,
         tuple((
-            dummy_args_list,
+            map(opt(dummy_args_list), |args| args.unwrap_or(vec![])),
             preceded(
                 nom_unicode::complete::space0,
                 many0(
@@ -414,6 +414,15 @@ mod tests {
             ])
         ))),
         case("「||かめた！100　歩く。」", Ok(
+        (
+            "",
+            ASTNode::new_block_define(&vec![], &vec![ASTNode::new_method_call(
+                "歩く",
+                &ASTNode::new_decl(&None, "かめた"),
+                &vec![ASTNode::new_static_value(&Value::Num(100.0))]
+            )])
+        ))),
+        case("「かめた！100　歩く。」", Ok(
         (
             "",
             ASTNode::new_block_define(&vec![], &vec![ASTNode::new_method_call(
