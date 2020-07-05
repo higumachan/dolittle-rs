@@ -48,6 +48,10 @@ impl Object {
         self.body.borrow_mut().methods.insert(symbol, method);
     }
 
+    pub fn add_method_str(&self, symbol: &str, method: Method, vm: &VirtualMachine) {
+        self.add_method(vm.to_symbol(symbol), method)
+    }
+
     pub fn set_member(&self, symbol: SymbolId, value: Value) {
         self.body.borrow_mut().members.insert(symbol, value);
     }
@@ -235,6 +239,10 @@ pub mod block {
         exec(this, &vec![], vm)
     }
 
+    pub fn if_(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        Ok(Value::ObjectReference(super::condition::create_internal(vm)?))
+    }
+
     pub fn exec(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let this_obj = vm.get_object_from_value(this)?;
         let t = this_obj.get_internal_value::<BlockInternalValue>();
@@ -246,5 +254,56 @@ pub mod block {
         }
         vm.pop_stack();
         return Ok(result)
+    }
+}
+
+pub mod condition {
+    use crate::vm::{VirtualMachine, ObjectId};
+    use crate::types::Value;
+    use crate::error::{Error, Result};
+    use crate::object::Object;
+    use crate::object::root::create;
+    use std::rc::Rc;
+
+    pub fn create_super_object(root_object_id: ObjectId, vm: &VirtualMachine) -> Result<ObjectId> {
+        let root_value = Value::ObjectReference(root_object_id);
+        let super_object_value: Value = super::root::create(&root_value, &vec![], vm)?;
+        let mut super_object: Rc<Object> = super_object_value.as_object(vm)?;
+
+        super_object.set_member_str("flag", Value::Bool(false), vm);
+        super_object.add_method_str("実行", exec, vm);
+        super_object.add_method_str("そうでないなら", exec, vm);
+        vm.assign(vm.to_symbol("Condition"), &super_object_value);
+        super_object_value.as_object_id()
+    }
+
+    pub fn create_internal(vm: &VirtualMachine) -> Result<ObjectId> {
+        let v = vm.get_value_in_scope_from_symbol("Condition")?;
+        create(&v, &vec![], vm)?.as_object_id()
+    }
+
+    pub fn exec(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        assert_eq!(args.len(), 1);
+
+        let this_obj = vm.get_object_from_value(this)?;
+        let b = this_obj.get_member_str("flag", vm)?.as_bool()?;
+
+        if b {
+            return super::block::exec(&args[0], &vec![], vm);
+        }
+        Ok(this.clone())
+    }
+
+    pub fn else_(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        assert_eq!(args.len(), 1);
+
+        let this_obj = vm.get_object_from_value(this)?;
+        let b = this_obj.get_member_str("cond", vm)?.as_bool()?;
+
+        if !b {
+            return super::block::exec(&args[0], &vec![], vm);
+        }
+
+        Ok(this.clone())
     }
 }

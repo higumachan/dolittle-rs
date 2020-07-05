@@ -1,10 +1,10 @@
 
-use nom::{IResult, character::complete::{anychar, }, bytes::complete::{tag, }, combinator::{value, not, map}, sequence::{tuple, preceded}, multi::{many0, }, branch::alt, Err};
+use nom::{IResult, character::complete::{anychar, }, bytes::complete::{tag, }, combinator::{value, not, map}, sequence::{tuple, preceded}, multi::{many0, }, branch::alt, Err, InputTakeAtPosition};
 use std::ptr::eq;
 use std::borrow::Borrow;
 use core::symbol::{SymbolTable, SymbolId};
 use std::cell::RefCell;
-use nom::error::ErrorKind;
+use nom::error::{ErrorKind, ParseError};
 use std::rc::Rc;
 use core::ast::ASTNode;
 use nom::sequence::{terminated, separated_pair, delimited};
@@ -15,9 +15,10 @@ use nom::bytes::complete::{take_until, take_till};
 use nom::Err::Error;
 use core::ast::ASTNode::MethodCall;
 use nom::character::complete::{line_ending};
+use nom_unicode::IsChar;
 
 pub fn parse_program_code(input: &str) -> IResult<&str, Vec<ASTNode>> {
-    all_consuming(many0(terminated(term, many0(alt(
+    all_consuming(many0(terminated(code_block, many0(alt(
         (
             nom_unicode::complete::space1,
             line_ending,
@@ -29,6 +30,8 @@ pub fn parse_program_code(input: &str) -> IResult<&str, Vec<ASTNode>> {
 enum SpecialToken {
     Plus,
     Minus,
+    Astar,
+    Slash,
     Exclamation,
     Equal,
     OpenParentheses,
@@ -91,13 +94,24 @@ fn colon(input: &str) -> IResult<&str, SpecialToken> {
     ))(input)
 }
 
-fn specials(input: &str) -> IResult<&str, SpecialToken> {
-    let plus = value(SpecialToken::Plus, alt((tag("+"), tag("＋"))));
-    let minus = value(SpecialToken::Minus, (tag("-")));
-
+fn plus_minus(input: &str) -> IResult<&str, SpecialToken> {
     alt((
-        plus,
-        minus,
+        value(SpecialToken::Plus, alt((tag("+"), tag("＋")))),
+        value(SpecialToken::Minus, tag("-")),
+    ))(input)
+}
+
+fn astar_slash(input: &str) -> IResult<&str, SpecialToken> {
+    alt((
+        value(SpecialToken::Astar, alt((tag("*"), tag("＊")))),
+        value(SpecialToken::Slash, tag("/")),
+    ))(input)
+}
+
+fn specials(input: &str) -> IResult<&str, SpecialToken> {
+    alt((
+        plus_minus,
+        astar_slash,
         exclamation,
         equal,
         end_of_term,
@@ -142,9 +156,10 @@ fn form(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
             method_call,
-            num_static_value,
             block,
+            term,
             decl,
+            num_static_value,
         )
     )(input)
 }
@@ -176,7 +191,7 @@ fn assign(input: &str) -> IResult<&str, ASTNode> {
     )(input)
 }
 
-fn term(input: &str) -> IResult<&str, ASTNode> {
+fn code_block(input: &str) -> IResult<&str, ASTNode> {
     terminated(
         alt(
             (
@@ -206,6 +221,55 @@ fn num_static_value(input: &str) -> IResult<&str, ASTNode> {
     map(num, |x| ASTNode::new_static_value(&x))(input)
 }
 
+fn whitespace_delimited<I, O1, F, E: ParseError<I>>(sep: F) -> impl Fn(I) -> IResult<I, O1, E>
+where
+    I: InputTakeAtPosition,
+    <I as InputTakeAtPosition>::Item: IsChar,
+    F: Fn(I) -> IResult<I, O1, E>,
+{
+    move |input: I| {
+        let (input, _) = nom_unicode::complete::space0(input)?;
+        let (input, o) = sep(input)?;
+        nom_unicode::complete::space0(input).map(|(i, _)| (i, o))
+    }
+}
+
+fn term(input: &str) -> IResult<&str, ASTNode> {
+
+    map(tuple((factor,
+               opt(tuple((
+                   whitespace_delimited(plus_minus), term)
+               )))), |(x, right)| {
+            match right {
+                None => x,
+                Some((token, y)) => {
+                    match token {
+                        SpecialToken::Plus => ASTNode::new_add(&x, &y),
+                        SpecialToken::Minus => ASTNode::new_sub(&x, &y),
+                        _ => panic!("invalid special token"),
+                    }
+                }
+            }
+    })(input)
+}
+
+fn factor(input: &str) -> IResult<&str, ASTNode> {
+    map(tuple((alt((
+        single_value,
+        delimited(open_parentheses, form, close_parentheses),
+    )), opt(tuple((whitespace_delimited(astar_slash), factor))))), |(x, right)| {
+        match right {
+            None => x,
+            Some((token, y)) => {
+                match token {
+                    SpecialToken::Astar => ASTNode::new_mul(&x, &y),
+                    SpecialToken::Slash => ASTNode::new_div(&x, &y),
+                    _ => panic!("invalid special token"),
+                }
+            }
+        }
+    })(input)
+}
 
 fn single_value(input: &str) -> IResult<&str, ASTNode> {
     alt(
@@ -281,7 +345,7 @@ fn block(input: &str) -> IResult<&str, ASTNode> {
             preceded(
                 nom_unicode::complete::space0,
                 many0(
-                    terminated(term, nom_unicode::complete::space0))
+                    terminated(code_block, nom_unicode::complete::space0))
             ),
         )),
         close_angles,
@@ -296,7 +360,7 @@ fn block(input: &str) -> IResult<&str, ASTNode> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol, decl, form, term, method_call, parse_program_code, block, dummy_args_list, symbol_or_member, assign};
+    use crate::{specials, SpecialToken, symbol, decl, form, code_block, method_call, parse_program_code, block, dummy_args_list, symbol_or_member, assign, term, plus_minus};
     use nom::{
         IResult,
         Err,
@@ -448,7 +512,7 @@ mod tests {
     #[test]
     fn kameta_create() {
         assert_eq!(
-            term("かめた＝タートル！作る。"),
+            code_block("かめた＝タートル！作る。"),
             Ok(("", ASTNode::new_assign(
                 &None,
                 "かめた",
@@ -464,7 +528,7 @@ mod tests {
     #[test]
     fn kameta_walk() {
         assert_eq!(
-            term("かめた！１００　歩く。"),
+            code_block("かめた！１００　歩く。"),
             Ok(("", ASTNode::new_method_call(
                 "歩く",
                 &ASTNode::new_decl(
@@ -478,7 +542,7 @@ mod tests {
 
     #[test]
     fn kameta_walk_turn_left90() {
-        assert_eq!(term("かめた！１００　歩く　９０　右回り。"),
+        assert_eq!(code_block("かめた！１００　歩く　９０　右回り。"),
                    Ok(("", ASTNode::new_method_call("右回り", &ASTNode::new_method_call(
                        "歩く",
                        &ASTNode::new_decl(&None, "かめた"),
@@ -498,10 +562,18 @@ mod tests {
         assert_eq!(assign(input), expected);
     }
 
+    #[rstest(input, expected,
+        case("1+1", Ok(("",
+            ASTNode::new_add(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
+    )]
+    fn numeric_forms(input: &str, expected: IResult<&str, ASTNode>) {
+        assert_eq!(term(input), expected);
+    }
+
     #[test]
     fn method_assign_test() {
         let target = "かめた：歩く２＝「｜N｜　かめた！(N)　歩く。　かめた！(N)　歩く。」。";
-        assert_eq!(term(target), Ok(("", ASTNode::new_assign(
+        assert_eq!(code_block(target), Ok(("", ASTNode::new_assign(
             &Some(ASTNode::new_decl(&None, "かめた")), "歩く２", &ASTNode::new_block_define(
                 &vec!["N"], &vec![
                     ASTNode::new_method_call("歩く",
@@ -517,7 +589,7 @@ mod tests {
 
     fn repeat_block_4times() {
         let input = "「｜長さ｜「｜｜ かめた！（長さ）　歩く。かめた！９０　右回り。」！４　繰り返す。」。";
-        assert_eq!(term(input), Ok(("", ASTNode::new_block_define(
+        assert_eq!(code_block(input), Ok(("", ASTNode::new_block_define(
             &vec!["長さ"], &vec![ASTNode::new_method_call(
                 "繰り返す",
                 &ASTNode::new_block_define(&vec![], &vec![
@@ -547,5 +619,8 @@ mod tests {
         assert_eq!(block("「|歩幅|かめた！(歩幅)　歩く (歩幅)　歩く。」").is_ok(), true);
 
         assert_eq!(form("「||かめた！１００　歩く。」！４　繰り返す。").is_ok(), true);
+
+        assert_eq!(plus_minus("+").is_ok(), true);
+        assert_eq!(term("1+1").is_ok(), true);
     }
 }

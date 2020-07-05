@@ -1,5 +1,7 @@
-use crate::vm::ObjectId;
+use crate::vm::{ObjectId, VirtualMachine};
 use crate::error::{Error, Result};
+use crate::object::Object;
+use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -33,5 +35,9 @@ impl Value {
         } else {
             Err(Error::Runtime)
         }
+    }
+
+    pub fn as_object(&self, vm: &VirtualMachine) -> Result<Rc<Object>> {
+        vm.get_object(self.as_object_id()?)
     }
 }

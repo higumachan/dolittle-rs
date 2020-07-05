@@ -79,7 +79,7 @@ mod tests {
         assert!(nearly_equal_with_eps(
             90.0, kameta.get_member_str("direction", &vm).unwrap().as_num().unwrap(), eps));
         assert!(kameta.get_member_str("visible", &vm).unwrap().as_bool().unwrap());
-        assert_eq!(vm.get_object_heap().len(), 6);
+        assert_eq!(vm.get_object_heap().len(), 7);
     }
 
     #[test]
@@ -105,6 +105,13 @@ mod tests {
 
         interpreter.exec("てすと＝１。");
 
-        assert_eq!(interpreter.vm.get_value_in_scape_from_symbol("てすと").unwrap().as_num().unwrap(), 1.0)
+        assert_eq!(interpreter.vm.get_value_in_scope_from_symbol("てすと").unwrap().as_num().unwrap(), 1.0)
+    }
+
+    #[test]
+    fn test_if() {
+        let mut interpreter = Interpreter::new();
+
+        interpreter.exec("てすと＝１。");
     }
 }

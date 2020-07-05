@@ -17,6 +17,7 @@ pub enum ASTNode {
     Decl(DeclImpl),
     StaticValue(Value),
     BlockDefine(BlockDefineImpl),
+    DoBinaryOperator(BinaryOperatorImpl),
 }
 
 impl Eval for ASTNode {
@@ -27,6 +28,7 @@ impl Eval for ASTNode {
             Self::Decl(x) => x.eval(vm),
             Self::StaticValue(v) => Ok(v.clone()),
             Self::BlockDefine(x) => x.eval(vm),
+            Self::DoBinaryOperator(x) => x.eval(vm),
         }
     }
 }
@@ -64,6 +66,38 @@ impl ASTNode {
         Self::BlockDefine(BlockDefineImpl {
             dummy_args: dummy_args.iter().map(|x| x.to_string()).collect(),
             body: body.clone().into_iter().map(|x| Rc::new(x)).collect(),
+        })
+    }
+
+    pub fn new_add(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Add,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_sub(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Sub,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_div(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Div,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_mul(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Mul,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
         })
     }
 }
@@ -145,5 +179,38 @@ impl Eval for BlockDefineImpl {
                                      &self.dummy_args,
                                      &self.body,
                                      vm)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum BinaryOperator {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+impl BinaryOperator {
+    fn eval(&self, left: &Value, right: &Value) -> Result<Value> {
+        let x = left.as_num()?;
+        let y = right.as_num()?;
+
+        return Ok(Value::Num(x + y));
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BinaryOperatorImpl {
+    pub operator: BinaryOperator,
+    pub left: Rc<ASTNode>,
+    pub right: Rc<ASTNode>,
+}
+
+impl Eval for BinaryOperatorImpl {
+    fn eval(&self, vm: &VirtualMachine) -> Result<Value> {
+        let left = self.left.eval(vm)?;
+        let right = self.right.eval(vm)?;
+
+        self.operator.eval(&left, &right)
     }
 }

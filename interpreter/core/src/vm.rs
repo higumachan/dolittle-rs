@@ -136,7 +136,7 @@ impl VirtualMachine {
             })
     }
 
-    pub fn get_value_in_scape_from_symbol(&self, symbol: &str) -> Result<Value> {
+    pub fn get_value_in_scope_from_symbol(&self, symbol: &str) -> Result<Value> {
         let sym_id = self.to_symbol(symbol);
         self.get_value_in_scope(sym_id)
     }
@@ -215,5 +215,8 @@ impl VirtualMachine {
             self.assign(line_symbol, &line_value).unwrap();
             line_value.as_object_id().unwrap()
         };
+
+        let condition_obj_id = object::condition::create_super_object(
+            root_obj_id, self).unwrap();
     }
 }
