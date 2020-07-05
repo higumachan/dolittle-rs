@@ -14,7 +14,7 @@ pub struct ObjectId(usize);
 pub struct VirtualMachine {
     object_heap: RefCell<HashMap<ObjectId, Rc<Object>>>,
     next_object_id: Cell<usize>,
-    object_assigns_table: RefCell<HashMap<SymbolId, ObjectId>>,
+    value_assigns_table: RefCell<HashMap<SymbolId, Value>>,
     symbol_table: RefCell<SymbolTable>,
     stack: RefCell<Vec<HashMap<SymbolId, Value>>>,
 }
@@ -24,7 +24,7 @@ impl VirtualMachine {
         Self {
             object_heap: RefCell::new(HashMap::new()),
             next_object_id: Cell::new(0),
-            object_assigns_table: RefCell::new(HashMap::new()),
+            value_assigns_table: RefCell::new(HashMap::new()),
             symbol_table: RefCell::new(SymbolTable::new()),
             stack: RefCell::new(vec![]),
         }
@@ -75,14 +75,7 @@ impl VirtualMachine {
     }
 
     pub fn assign(&self, target: SymbolId, value: &Value) -> Result<()> {
-        match value {
-            Value::ObjectReference(oid) => {
-                self.object_assigns_table.borrow_mut().insert(target, *oid);
-            }
-            _ => {
-                return Err(Error::Runtime)
-            }
-        };
+        self.value_assigns_table.borrow_mut().insert(target, value.clone());
         Ok(())
     }
 
@@ -101,7 +94,7 @@ impl VirtualMachine {
     }
 
     pub fn get_block_object_value(&self) -> Result<Value> {
-        Ok(Value::ObjectReference(self.get_object_id(self.to_symbol("ブロック"))?))
+        Ok(Value::ObjectReference(self.get_object_id_in_assigns(self.to_symbol("ブロック"))?))
     }
 
     pub fn get_object_from_value(&self, value :&Value) -> Result<Rc<Object>> {
@@ -115,19 +108,23 @@ impl VirtualMachine {
         }
     }
 
-    pub fn get_object_from_symbol(&self, symbol: &str) -> Result<Rc<Object>> {
-        self.get_object(self.get_object_id(self.to_symbol(symbol))?)
+    pub fn get_object_in_assigns_from_symbol(&self, symbol: &str) -> Result<Rc<Object>> {
+        self.get_object(self.get_object_id_in_assigns(self.to_symbol(symbol))?)
     }
 
     pub fn get_object_heap(&self) -> Ref<HashMap<ObjectId, Rc::<Object>>> {
         self.object_heap.borrow()
     }
 
-    pub fn get_object_id(&self, symbol_id: SymbolId) -> Result<ObjectId> {
-        let assigns_table = self.object_assigns_table
+    pub fn get_object_id_in_assigns(&self, symbol_id: SymbolId) -> Result<ObjectId> {
+        self.get_value_in_assigns(symbol_id)?.as_object_id()
+    }
+
+    fn get_value_in_assigns(&self, symbol_id: SymbolId) -> Result<Value> {
+        let assigns_table = self.value_assigns_table
             .borrow();
         assigns_table.get(&symbol_id)
-            .copied()
+            .cloned()
             .ok_or(Error::ObjectNotFound)
     }
 
@@ -135,8 +132,13 @@ impl VirtualMachine {
         self.stack.borrow().iter().rev().find_map(|x| x.get(&symbol_id).cloned())
             .ok_or(Error::ObjectNotFound)
             .or_else(|_| {
-                Ok(Value::ObjectReference(self.get_object_id(symbol_id)?))
+                self.get_value_in_assigns(symbol_id)
             })
+    }
+
+    pub fn get_value_in_scape_from_symbol(&self, symbol: &str) -> Result<Value> {
+        let sym_id = self.to_symbol(symbol);
+        self.get_value_in_scope(sym_id)
     }
 
     pub fn object_heap_borrow(&self) -> Ref<HashMap<ObjectId, Rc<Object>>>{

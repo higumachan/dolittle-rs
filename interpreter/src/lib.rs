@@ -53,7 +53,7 @@ mod tests {
 "#);
 
         let vm = interpreter.vm;
-        let kameta = vm.get_object_from_symbol("かめた").unwrap();
+        let kameta = vm.get_object_in_assigns_from_symbol("かめた").unwrap();
         assert!(nearly_equal(
             100.0, kameta.get_member_str("x", &vm).unwrap().as_num().unwrap()));
         assert!(nearly_equal(0.0, kameta.get_member_str("y", &vm).unwrap().as_num().unwrap()));
@@ -70,7 +70,7 @@ mod tests {
 "#);
 
         let vm = interpreter.vm;
-        let kameta = vm.get_object_from_symbol("かめた").unwrap();
+        let kameta = vm.get_object_in_assigns_from_symbol("かめた").unwrap();
 
         assert!(nearly_equal_with_eps(
             0.0, kameta.get_member_str("x", &vm).unwrap().as_num().unwrap(), eps));
@@ -92,10 +92,19 @@ mod tests {
 
 
         let vm = interpreter.vm;
-        let kameta = vm.get_object_from_symbol("かめた").unwrap();
+        let kameta = vm.get_object_in_assigns_from_symbol("かめた").unwrap();
         assert!(nearly_equal_with_eps(
             100.0, kameta.get_member_str("x", &vm).unwrap().as_num().unwrap(), eps));
         assert!(nearly_equal_with_eps(
             0.0, kameta.get_member_str("y", &vm).unwrap().as_num().unwrap(), eps));
+    }
+
+    #[test]
+    fn test_assign_static_value() {
+        let mut interpreter = Interpreter::new();
+
+        interpreter.exec("てすと＝１。");
+
+        assert_eq!(interpreter.vm.get_value_in_scape_from_symbol("てすと").unwrap().as_num().unwrap(), 1.0)
     }
 }

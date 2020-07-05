@@ -164,7 +164,7 @@ pub mod turtle {
         this_obj.set_member_str(y, Value::Num(y2), vm);
 
         let line = vm.call_method(
-            &Value::ObjectReference(vm.get_object_id(
+            &Value::ObjectReference(vm.get_object_id_in_assigns(
                 vm.to_symbol("線"))?),
             vm.to_symbol("作る"), &vec![])?;
         let line_obj = vm.get_object_from_value(&line)?;
