@@ -100,6 +100,70 @@ impl ASTNode {
             right: Rc::new(right.clone()),
         })
     }
+
+    pub fn new_lt(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Lt,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_lte(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Lte,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_gt(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Gt,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_gte(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Gte,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_eq(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Eq,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_ne(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Ne,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_and(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::And,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
+
+    pub fn new_or(left: &ASTNode, right: &ASTNode) -> Self {
+        Self::DoBinaryOperator(BinaryOperatorImpl {
+            operator: BinaryOperator::Or,
+            left: Rc::new(left.clone()),
+            right: Rc::new(right.clone()),
+        })
+    }
 }
 
 
@@ -188,14 +252,32 @@ pub enum BinaryOperator {
     Sub,
     Mul,
     Div,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    Eq,
+    Ne,
+    And,
+    Or,
 }
 
 impl BinaryOperator {
     fn eval(&self, left: &Value, right: &Value) -> Result<Value> {
-        let x = left.as_num()?;
-        let y = right.as_num()?;
-
-        return Ok(Value::Num(x + y));
+        Ok(match self {
+            BinaryOperator::Add => Value::Num(left.as_num()? + right.as_num()?),
+            BinaryOperator::Sub => Value::Num(left.as_num()? - right.as_num()?),
+            BinaryOperator::Mul => Value::Num(left.as_num()? * right.as_num()?),
+            BinaryOperator::Div => Value::Num(left.as_num()? / right.as_num()?),
+            BinaryOperator::Lt => Value::Bool(left.as_num()? < right.as_num()?),
+            BinaryOperator::Lte => Value::Bool(left.as_num()? <= right.as_num()?),
+            BinaryOperator::Gt => Value::Bool(left.as_num()? > right.as_num()?),
+            BinaryOperator::Gte => Value::Bool(left.as_num()? >= right.as_num()?),
+            BinaryOperator::Eq => Value::Bool(left.as_num()? == right.as_num()?),
+            BinaryOperator::Ne => Value::Bool(left.as_num()? != right.as_num()?),
+            BinaryOperator::And => Value::Bool(left.as_bool()? && right.as_bool()?),
+            BinaryOperator::Or => Value::Bool(left.as_bool()? || right.as_bool()?),
+        })
     }
 }
 

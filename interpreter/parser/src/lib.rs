@@ -34,6 +34,14 @@ enum SpecialToken {
     Slash,
     Exclamation,
     Equal,
+    DoubleEqual,
+    NotEqual,
+    And,
+    Or,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
     OpenParentheses,
     CloseParentheses,
     OpenAngles,
@@ -42,6 +50,38 @@ enum SpecialToken {
     EndOfTerm,
     Comma,
     Colon,
+}
+
+fn lt(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Lt, alt((tag("<"), tag("＜"))))(input)
+}
+
+fn lte(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Lte, alt((tag("<="), tag("＜＝"))))(input)
+}
+
+fn gt(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Gt, alt((tag(">"), tag("＞"))))(input)
+}
+
+fn gte(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Gte, alt((tag(">="), tag("＞＝"))))(input)
+}
+
+fn double_equal(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::DoubleEqual, alt((tag("=="), tag("＝＝"))))(input)
+}
+
+fn not_equal(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::NotEqual, alt((tag("!="), tag("！＝"))))(input)
+}
+
+fn and(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::And, alt((tag("&&"), tag("＆＆"))))(input)
+}
+
+fn or(input: &str) -> IResult<&str, SpecialToken> {
+    value(SpecialToken::Or, alt((tag("||"), tag("｜｜"))))(input)
 }
 
 fn exclamation(input: &str) -> IResult<&str, SpecialToken> {
@@ -122,6 +162,14 @@ fn specials(input: &str) -> IResult<&str, SpecialToken> {
         comma,
         pipe,
         colon,
+        lt,
+        lte,
+        gt,
+        gte,
+        double_equal,
+        not_equal,
+        and,
+        or,
     ))(input)
 }
 
@@ -156,8 +204,8 @@ fn form(input: &str) -> IResult<&str, ASTNode> {
     alt(
         (
             method_call,
+            or_term,
             block,
-            term,
             decl,
             num_static_value,
         )
@@ -234,11 +282,85 @@ where
     }
 }
 
-fn term(input: &str) -> IResult<&str, ASTNode> {
 
-    map(tuple((factor,
+fn or_term(input: &str) -> IResult<&str, ASTNode> {
+    map(tuple((and_term,
                opt(tuple((
-                   whitespace_delimited(plus_minus), term)
+                   whitespace_delimited(or), or_term)
+               )))), |(x, right)| {
+        match right {
+            None => x,
+            Some((token, y)) => {
+                match token {
+                    SpecialToken::Or => ASTNode::new_or(&x, &y),
+                    _ => panic!("invalid special token"),
+                }
+            }
+        }
+    })(input)
+}
+
+
+fn and_term(input: &str) -> IResult<&str, ASTNode> {
+    map(tuple((eq_ne_term,
+               opt(tuple((
+                   whitespace_delimited(and), and_term)
+               )))), |(x, right)| {
+        match right {
+            None => x,
+            Some((token, y)) => {
+                match token {
+                    SpecialToken::And => ASTNode::new_and(&x, &y),
+                    _ => panic!("invalid special token"),
+                }
+            }
+        }
+    })(input)
+}
+
+fn eq_ne_term(input: &str) -> IResult<&str, ASTNode> {
+    map(tuple((compare_term,
+               opt(tuple((
+                   whitespace_delimited(alt((double_equal, not_equal))), and_term)
+               )))), |(x, right)| {
+        match right {
+            None => x,
+            Some((token, y)) => {
+                match token {
+                    SpecialToken::DoubleEqual => ASTNode::new_eq(&x, &y),
+                    SpecialToken::NotEqual => ASTNode::new_ne(&x, &y),
+                    _ => panic!("invalid special token"),
+                }
+            }
+        }
+    })(input)
+}
+
+fn compare_term(input: &str) -> IResult<&str, ASTNode> {
+    map(tuple((add_sub_term,
+               opt(tuple((
+                   whitespace_delimited(alt((lt, lte, gt, gte))), and_term)
+               )))), |(x, right)| {
+        match right {
+            None => x,
+            Some((token, y)) => {
+                match token {
+                    SpecialToken::Lt => ASTNode::new_lt(&x, &y),
+                    SpecialToken::Lte => ASTNode::new_lte(&x, &y),
+                    SpecialToken::Gt => ASTNode::new_gt(&x, &y),
+                    SpecialToken::Gte => ASTNode::new_gte(&x, &y),
+                    _ => panic!("invalid special token"),
+                }
+            }
+        }
+    })(input)
+}
+
+
+fn add_sub_term(input: &str) -> IResult<&str, ASTNode> {
+    map(tuple((mut_div_term,
+               opt(tuple((
+                   whitespace_delimited(plus_minus), add_sub_term)
                )))), |(x, right)| {
             match right {
                 None => x,
@@ -253,11 +375,11 @@ fn term(input: &str) -> IResult<&str, ASTNode> {
     })(input)
 }
 
-fn factor(input: &str) -> IResult<&str, ASTNode> {
+fn mut_div_term(input: &str) -> IResult<&str, ASTNode> {
     map(tuple((alt((
         single_value,
         delimited(open_parentheses, form, close_parentheses),
-    )), opt(tuple((whitespace_delimited(astar_slash), factor))))), |(x, right)| {
+    )), opt(tuple((whitespace_delimited(astar_slash), mut_div_term))))), |(x, right)| {
         match right {
             None => x,
             Some((token, y)) => {
@@ -360,7 +482,7 @@ fn block(input: &str) -> IResult<&str, ASTNode> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{specials, SpecialToken, symbol, decl, form, code_block, method_call, parse_program_code, block, dummy_args_list, symbol_or_member, assign, term, plus_minus};
+    use crate::{specials, SpecialToken, symbol, decl, form, code_block, method_call, parse_program_code, block, dummy_args_list, symbol_or_member, assign, or_term, plus_minus};
     use nom::{
         IResult,
         Err,
@@ -571,6 +693,8 @@ mod tests {
             ASTNode::new_mul(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
         case("1/1", Ok(("",
             ASTNode::new_div(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
+        case("1<1", Ok(("",
+            ASTNode::new_lt(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
         case("1 + 2 * 3", Ok(("",
             ASTNode::new_add(
                 &ASTNode::new_static_value(&Value::Num(1.0)),
@@ -580,9 +704,14 @@ mod tests {
                 &ASTNode::new_add(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(2.0))),
                 &ASTNode::new_static_value(&Value::Num(3.0)),
         )))),
+        case("1 + 2 < 3", Ok(("",
+            ASTNode::new_lt(
+                &ASTNode::new_add(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(2.0))),
+                &ASTNode::new_static_value(&Value::Num(3.0)),
+        )))),
     )]
     fn numeric_forms(input: &str, expected: IResult<&str, ASTNode>) {
-        assert_eq!(term(input), expected);
+        assert_eq!(or_term(input), expected);
     }
 
     #[test]
@@ -636,6 +765,6 @@ mod tests {
         assert_eq!(form("「||かめた！１００　歩く。」！４　繰り返す。").is_ok(), true);
 
         assert_eq!(plus_minus("+").is_ok(), true);
-        assert_eq!(term("1+1").is_ok(), true);
+        assert_eq!(or_term("1+1").is_ok(), true);
     }
 }
