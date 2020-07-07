@@ -176,6 +176,11 @@ impl VirtualMachine {
                 object::block::repeat,
             );
 
+            block.add_method(
+                self.to_symbol("ならば"),
+                object::block::if_,
+            );
+
             let block_symbol = self.to_symbol("ブロック");
             self.assign(block_symbol, &block_value).unwrap();
 

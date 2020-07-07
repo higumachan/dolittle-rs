@@ -240,7 +240,12 @@ pub mod block {
     }
 
     pub fn if_(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
-        Ok(Value::ObjectReference(super::condition::create_internal(vm)?))
+        let object_id = super::condition::create_internal(vm)?;
+        let object = vm.get_object(object_id).unwrap();
+        let flag = exec(this, &vec![], vm)?.as_bool()?;
+        object.set_member_str("flag", Value::Bool(flag), vm);
+
+        Ok(Value::ObjectReference(object_id))
     }
 
     pub fn exec(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
@@ -272,7 +277,7 @@ pub mod condition {
 
         super_object.set_member_str("flag", Value::Bool(false), vm);
         super_object.add_method_str("実行", exec, vm);
-        super_object.add_method_str("そうでないなら", exec, vm);
+        super_object.add_method_str("そうでないなら", else_, vm);
         vm.assign(vm.to_symbol("Condition"), &super_object_value);
         super_object_value.as_object_id()
     }
@@ -295,15 +300,15 @@ pub mod condition {
     }
 
     pub fn else_(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
-        assert_eq!(args.len(), 1);
+        assert_eq!(args.len(), 0);
 
         let this_obj = vm.get_object_from_value(this)?;
-        let b = this_obj.get_member_str("cond", vm)?.as_bool()?;
+        let b = this_obj.get_member_str("flag", vm)?.as_bool()?;
 
-        if !b {
-            return super::block::exec(&args[0], &vec![], vm);
-        }
+        let object_id = create_internal(vm)?;
+        let object = vm.get_object(object_id).unwrap();
+        object.set_member_str("flag", Value::Bool(!b), vm);
 
-        Ok(this.clone())
+        Ok(Value::ObjectReference(object_id))
     }
 }

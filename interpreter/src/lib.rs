@@ -109,9 +109,30 @@ mod tests {
     }
 
     #[test]
+    fn test_repeat() {
+        let mut interpreter = Interpreter::new();
+
+        interpreter.exec("かめた＝タートル！　作る。");
+        interpreter.exec("「かめた！１００　歩く。」！４　繰り返す。");
+
+        let vm = interpreter.vm;
+        let kameta = vm.get_object_in_assigns_from_symbol("かめた").unwrap();
+        assert!(nearly_equal_with_eps(
+            400.0, kameta.get_member_str("x", &vm).unwrap().as_num().unwrap(), eps));
+        assert!(nearly_equal_with_eps(
+            0.0, kameta.get_member_str("y", &vm).unwrap().as_num().unwrap(), eps));
+
+    }
+
+    #[test]
     fn test_if() {
         let mut interpreter = Interpreter::new();
 
         interpreter.exec("てすと＝１。");
+        assert_eq!(interpreter.vm.get_value_in_scope_from_symbol("てすと").unwrap().as_num().unwrap(), 1.0);
+        interpreter.exec("「てすと＝＝１。」！ならば　「てすと２＝２。」　実行。");
+        assert_eq!(interpreter.vm.get_value_in_scope_from_symbol("てすと２").unwrap().as_num().unwrap(), 2.0);
+        interpreter.exec("「てすと＝＝０。」！ならば　「てすと２＝２。」　実行　そうでないなら　「てすと３＝３。」　実行。");
+        assert_eq!(interpreter.vm.get_value_in_scope_from_symbol("てすと３").unwrap().as_num().unwrap(), 3.0);
     }
 }
