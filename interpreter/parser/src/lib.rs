@@ -563,8 +563,23 @@ mod tests {
     }
 
     #[rstest(input, expected,
-        case("1+1", Ok(("",
+        case("1 + 1", Ok(("",
             ASTNode::new_add(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
+        case("1-1", Ok(("",
+            ASTNode::new_sub(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
+        case("1*1", Ok(("",
+            ASTNode::new_mul(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
+        case("1/1", Ok(("",
+            ASTNode::new_div(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(1.0)))))),
+        case("1 + 2 * 3", Ok(("",
+            ASTNode::new_add(
+                &ASTNode::new_static_value(&Value::Num(1.0)),
+                &ASTNode::new_mul(&ASTNode::new_static_value(&Value::Num(2.0)), &ASTNode::new_static_value(&Value::Num(3.0))))))),
+        case("(1 + 2) * 3", Ok(("",
+            ASTNode::new_mul(
+                &ASTNode::new_add(&ASTNode::new_static_value(&Value::Num(1.0)), &ASTNode::new_static_value(&Value::Num(2.0))),
+                &ASTNode::new_static_value(&Value::Num(3.0)),
+        )))),
     )]
     fn numeric_forms(input: &str, expected: IResult<&str, ASTNode>) {
         assert_eq!(term(input), expected);
