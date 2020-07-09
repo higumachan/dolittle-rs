@@ -175,6 +175,21 @@ impl ObjectBody {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::object::{ObjectBody, Object};
+    use crate::vm::ObjectId;
+    use std::sync::Arc;
+
+    #[test]
+    fn is_subclass() {
+        let parent = Object::new(ObjectId(0), ObjectBody::empty());
+        let child = Object::new(ObjectId(1), ObjectBody::new(&Some(Arc::new(parent))));
+
+        assert!(child.is_subclass(ObjectId(0)));
+        assert!(!child.is_subclass(ObjectId(3)));
+    }
+}
 
 pub mod root {
     use crate::types::Value;

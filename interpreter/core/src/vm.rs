@@ -8,7 +8,7 @@ use crate::ast::{ASTNode, Eval};
 use std::sync::{RwLock, Arc, Mutex, RwLockReadGuard};
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
-pub struct ObjectId(usize);
+pub struct ObjectId(pub usize);
 
 pub struct VirtualMachine {
     object_heap: RwLock<HashMap<ObjectId, Arc<Object>>>,
