@@ -1,4 +1,4 @@
-use core::vm::VirtualMachine;
+use core::vm::{VirtualMachine, ObjectId};
 use core::ast::ASTNode;
 use core::object::Object;
 use std::collections::HashMap;
@@ -25,6 +25,13 @@ impl Interpreter {
 
     pub fn get_symbol(&self, s: &str) -> SymbolId {
         self.vm.to_symbol(s)
+    }
+
+    pub fn get_object_id(&self, symbol: &str) -> ObjectId {
+        self.vm.get_value_in_scope_from_symbol(symbol)
+            .expect("object not found")
+            .as_object_id()
+            .expect("object not found")
     }
 
     pub fn new() -> Self {

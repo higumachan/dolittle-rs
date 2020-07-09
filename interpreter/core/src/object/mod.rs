@@ -31,21 +31,16 @@ impl Object {
         }
     }
 
-    pub fn is_subclass(&self, obj: &Object) -> bool {
-        let this_obj = self.body.read().unwrap().parent.clone().expect("ルートに対して呼んでる");
-
-        loop {
-            if this_obj.id == obj.id {
+    pub fn is_subclass(&self, obj_id: ObjectId) -> bool {
+        if let Some(this_obj) = self.body.read().unwrap().parent.clone() {
+            if this_obj.id == obj_id {
                 return true;
             }
 
-            if this_obj.body.read().unwrap().parent.is_none() {
-                break;
-            }
-            let this_obj = this_obj.body.read().unwrap().parent.clone().unwrap();
+            this_obj.is_subclass(obj_id)
+        } else {
+            return false;
         }
-
-        false
     }
 
     pub fn get_method(&self, symbol: SymbolId) -> Result<Method> {

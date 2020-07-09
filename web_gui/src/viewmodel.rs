@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 use core::object::Object;
 use std::cell::RefCell;
 use serde::Serialize;
+use core::types::Value;
 
 
 #[derive(Clone, Debug, Serialize)]
@@ -49,26 +50,31 @@ impl ViewModel for InterpreterViewModel {
         let y2= model.get_symbol("y2");
         let direction = model.get_symbol("direction");
         let visible = model.get_symbol("visible");
-        let mut turtles: Vec<VisualObject> = model.get_objects().iter().filter_map(|obj| {
-            if obj.get_member(visible).ok()?.as_bool().ok()? {
-                Some(VisualObject::ImageObject(ImageObjectImpl {
-                    x: obj.get_member(x).ok()?.as_num().ok()?,
-                    y: obj.get_member(y).ok()?.as_num().ok()?,
-                    rotation: obj.get_member(direction).ok()?.as_num().ok()?.to_radians(),
+        let turtle_obj_id = model.get_object_id("タートル");
+        let line_obj_id = model.get_object_id("線");
+        let mut visualObjects: Vec<VisualObject> = model.get_objects()
+            .iter()
+            .filter(|obj| obj.is_subclass(turtle_obj_id) && obj.get_member(visible).unwrap_or(Value::Bool(false)).as_bool().unwrap())
+            .map(|obj| {
+                VisualObject::ImageObject(ImageObjectImpl {
+                    x: obj.get_member(x).unwrap().as_num().unwrap(),
+                    y: obj.get_member(y).unwrap().as_num().unwrap(),
+                    rotation: obj.get_member(direction).unwrap().as_num().unwrap().to_radians(),
                     image: PathBuf::from("ayumi.png"),
-                }))
-            } else { None }
-        }).collect();
-        turtles.extend(model.get_objects().iter().filter_map(|obj| {
-            Some(VisualObject::Line(LineImpl {
-                x1: obj.get_member(x1).ok()?.as_num().ok()?,
-                y1: obj.get_member(y1).ok()?.as_num().ok()?,
-                x2: obj.get_member(x2).ok()?.as_num().ok()?,
-                y2: obj.get_member(y2).ok()?.as_num().ok()?,
-            }))
+                })
+            }).collect();
+        visualObjects.extend(model.get_objects()
+            .iter().filter(|obj| obj.is_subclass(line_obj_id))
+            .map(|obj| {
+                VisualObject::Line(LineImpl {
+                    x1: obj.get_member(x1).unwrap().as_num().unwrap(),
+                    y1: obj.get_member(y1).unwrap().as_num().unwrap(),
+                    x2: obj.get_member(x2).unwrap().as_num().unwrap(),
+                    y2: obj.get_member(y2).unwrap().as_num().unwrap(),
+                })
         }));
-        turtles.reverse();
-        turtles
+        visualObjects.reverse();
+        visualObjects
     }
 }
 
