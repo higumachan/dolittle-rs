@@ -17,6 +17,7 @@
   "dependencies": {
     "codemirror": "^5.55.0",
     "copy-webpack-plugin": "^6.0.3",
+    "image-promise": "^7.0.1",
     "write-file-webpack-plugin": "^4.5.1"
   }
 }

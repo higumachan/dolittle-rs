@@ -31,10 +31,6 @@ lazy_static! {
 pub async fn run(f: JsValue) {
     let view_model = InterpreterViewModel::new(interp.clone());
 
-    {
-        interp.write().unwrap().exec("かめた＝タートル！作る。");
-    }
-
     let f = js_sys::Function::from(f);
 
     loop {
@@ -43,4 +39,10 @@ pub async fn run(f: JsValue) {
         f.call1(&JsValue::NULL, &visual_objects);
         JsFuture::from(sleep(1000.0)).await;
     }
+}
+
+
+#[wasm_bindgen]
+pub fn exec(code: &str) {
+    interp.write().unwrap().exec(code);
 }
