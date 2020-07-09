@@ -16,17 +16,15 @@ mod tests {
     fn setup() -> VirtualMachine {
         let vm = VirtualMachine::new();
         let create_symbol = vm.to_symbol("作る");
-        let mut root = Object::empty();
+        let mut root = ObjectBody::empty();
         root.add_method(create_symbol, object::root::create);
 
         let root_obj_id = vm.allocate(root).unwrap();
         let root_symbol = vm.to_symbol("ルート");
         vm.assign(root_symbol, &Value::ObjectReference(root_obj_id)).unwrap();
 
-        let mut turtle = Object::new(
-                ObjectBody::new(
-                    &Some(vm.get_object(root_obj_id).unwrap().clone())),
-        );
+        let mut turtle = ObjectBody::new(
+                    &Some(vm.get_object(root_obj_id).unwrap().clone()));
         let turtle_obj_id = vm.allocate(turtle).unwrap();
         let turtle_symbol = vm.to_symbol("タートル");
         vm.assign(turtle_symbol, &Value::ObjectReference(turtle_obj_id)).unwrap();
@@ -122,7 +120,7 @@ mod tests {
             )
         ).unwrap();
 
-        let before_exec = vm.object_heap_borrow().len();
+        let _before_exec = vm.object_heap_borrow().len();
         vm.eval(&ASTNode::new_method_call(
             "歩く２",
             &ASTNode::new_decl(&None, "かめた"),

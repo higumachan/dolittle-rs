@@ -2,7 +2,7 @@ use crate::symbol::{SymbolId, SymbolTable};
 use std::collections::HashMap;
 use crate::error::{Error, Result};
 use crate::types::Value;
-use crate::object::Object;
+use crate::object::{Object, ObjectBody};
 use crate::object;
 use crate::ast::{ASTNode, Eval};
 use std::sync::{RwLock, Arc, Mutex, RwLockReadGuard};
@@ -78,9 +78,11 @@ impl VirtualMachine {
         Ok(())
     }
 
-    pub fn allocate(&self, object: Object) -> Result<ObjectId> {
+    pub fn allocate(&self, object_body: ObjectBody) -> Result<ObjectId> {
         let id = ObjectId(*self.next_object_id.lock().unwrap());
         *self.next_object_id.lock().unwrap() = id.0 + 1;
+
+        let object = Object::new(id, object_body);
         self.object_heap.write().unwrap()
             .insert(id, Arc::new(object));
         Ok(id)
@@ -152,18 +154,18 @@ impl VirtualMachine {
 
     pub fn initialize(&mut self) {
         let root_obj_id = {
-            let mut root = Object::empty();
+            let mut root = ObjectBody::empty();
             root.add_method(self.to_symbol("作る"), object::root::create);
             let root_obj_id = self.allocate(root).unwrap();
             self.assign(self.to_symbol("ルート"), &Value::ObjectReference(root_obj_id)).unwrap();
             root_obj_id
         };
 
-        let block_obj_id = {
+        let _block_obj_id = {
             let block_value = &object::root::create(
                 &Value::ObjectReference(root_obj_id), &vec![], self
             ).unwrap().clone();
-            let mut block = self.get_object_from_value(
+            let block = self.get_object_from_value(
                 &block_value
             ).unwrap();
 
@@ -188,11 +190,11 @@ impl VirtualMachine {
             block_value.as_object_id().unwrap()
         };
 
-        let turtle_obj_id = {
+        let _turtle_obj_id = {
             let turtle_value = &object::root::create(
                 &Value::ObjectReference(root_obj_id), &vec![], self
             ).unwrap().clone();
-            let mut turtle = self.get_object_from_value(
+            let turtle = self.get_object_from_value(
                 &turtle_value
             ).unwrap();
             turtle.add_method(self.to_symbol("歩く"),
@@ -213,7 +215,7 @@ impl VirtualMachine {
             turtle_value.as_object_id().unwrap()
         };
 
-        let line_obj_id = {
+        let _line_obj_id = {
             let line_value = &object::root::create(
                 &Value::ObjectReference(root_obj_id), &vec![], self
             ).unwrap().clone();
@@ -222,7 +224,11 @@ impl VirtualMachine {
             line_value.as_object_id().unwrap()
         };
 
-        let condition_obj_id = object::condition::create_super_object(
-            root_obj_id, self).unwrap();
+        let _condition_obj_id = object::condition::create_super_object(
+            root_obj_id, self
+        ).unwrap();
+
+        let _button_obj_id =
+            object::button::create_super_object(root_obj_id, self).unwrap();
     }
 }

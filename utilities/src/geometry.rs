@@ -20,11 +20,11 @@ pub fn dir_vector(direction_deg: Float) -> Vector2D {
 mod tests {
     use crate::geometry::{dir_vector, Float};
 
-    const eps: Float = 1e-5;
+    const EPS: Float = 1e-5;
 
     #[test]
     fn test_dir_vector() {
         let v = dir_vector(45.0f64);
-        assert!((v.x - v.y).abs() < eps);
+        assert!((v.x - v.y).abs() < EPS);
     }
 }

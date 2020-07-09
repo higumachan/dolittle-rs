@@ -9,14 +9,12 @@ const f = async (visualObjects) => {
     const ctx = canvas.getContext('2d');
 
     console.log(ctx.width);
-    let width = 600;
-    let height = 400;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.translate(canvas.width / 2, canvas.height / 2);
 
-    await Promise.all(visualObjects.map(async vo => {
+    for (let p of visualObjects.map(async vo => {
        if (vo.type === "ImageObject") {
            ctx.save();
            ctx.translate(vo.content.x, vo.content.y);
@@ -32,7 +30,9 @@ const f = async (visualObjects) => {
            ctx.lineTo(vo.content.x2, vo.content.y2);
            ctx.stroke();
        }
-    }));
+    })) {
+        await p;
+    }
     ctx.restore();
 }
 

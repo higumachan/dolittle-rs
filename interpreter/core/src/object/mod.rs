@@ -3,7 +3,7 @@ use crate::types::Value;
 use crate::error::{Error, Result};
 use std::collections::HashMap;
 use std::any::{Any};
-use crate::vm::{VirtualMachine};
+use crate::vm::{VirtualMachine, ObjectId};
 use std::fmt::{Debug, Formatter};
 use std::sync::{RwLock, Arc};
 
@@ -12,39 +12,48 @@ type Method = fn(&Value, &Vec<Value>, &VirtualMachine) -> Result<Value>;
 
 #[derive(Debug)]
 pub struct Object {
+    id: ObjectId,
     body: RwLock<ObjectBody>,
 }
 
 impl Object {
-    pub fn empty() -> Self {
+    pub fn empty(id: ObjectId) -> Self {
         Self {
+            id,
             body: RwLock::new(ObjectBody::new(&None))
         }
     }
 
-    pub fn new(body: ObjectBody) -> Self {
+    pub fn new(id: ObjectId, body: ObjectBody) -> Self {
         Self {
+            id,
             body: RwLock::new(body)
         }
     }
 
+    pub fn is_subclass(&self, obj: &Object) -> bool {
+        let this_obj = self.body.read().unwrap().parent.clone().expect("ルートに対して呼んでる");
+
+        loop {
+            if this_obj.id == obj.id {
+                return true;
+            }
+
+            if this_obj.body.read().unwrap().parent.is_none() {
+                break;
+            }
+            let this_obj = this_obj.body.read().unwrap().parent.clone().unwrap();
+        }
+
+        false
+    }
+
     pub fn get_method(&self, symbol: SymbolId) -> Result<Method> {
-        let parent = self.body.read().unwrap().parent.clone();
-        Ok(self.body.read().unwrap().methods
-            .get(&symbol)
-            .map(|x| x.clone())
-            .or_else(|| {
-                if let Some(parent) = parent {
-                    parent.get_method(symbol).ok()
-                } else {
-                    None
-                }
-            })
-            .ok_or(Error::MethodNotFound)?)
+        self.body.read().unwrap().get_method(symbol)
     }
 
     pub fn add_method(&self, symbol: SymbolId, method: Method) {
-        self.body.write().unwrap().methods.insert(symbol, method);
+        self.body.write().unwrap().add_method(symbol, method)
     }
 
     pub fn add_method_str(&self, symbol: &str, method: Method, vm: &VirtualMachine) {
@@ -52,23 +61,11 @@ impl Object {
     }
 
     pub fn set_member(&self, symbol: SymbolId, value: Value) {
-        self.body.write().unwrap().members.insert(symbol, value);
+        self.body.write().unwrap().set_member(symbol, value)
     }
 
     pub fn get_member(&self, symbol: SymbolId) -> Result<Value> {
-        let parent = self.body.read().unwrap().parent.clone();
-
-        Ok(self.body.read().unwrap().members
-            .get(&symbol)
-            .map(|x| x.clone())
-            .or_else(|| {
-                if let Some(parent) = parent {
-                    parent.get_member(symbol).ok()
-                } else {
-                    None
-                }
-            })
-            .ok_or(Error::MemberNotFound)?)
+        self.body.read().unwrap().get_member(symbol)
     }
 
     pub fn get_member_str(&self, symbol: &str, vm: &VirtualMachine) -> Result<Value> {
@@ -80,14 +77,12 @@ impl Object {
     }
 
     pub fn set_internal_value(&self, internal_value: Arc<dyn Any + Send + Sync>) {
-        self.body.write().unwrap().internal_value = Some(internal_value);
+        self.body.write().unwrap().set_internal_value(internal_value)
     }
 
     pub fn get_internal_value<T: Clone + Any + Send + Sync>(&self) -> Arc<T> {
         self.body
-            .write().unwrap().internal_value.clone()
-            .expect("invalid get internal value").downcast::<T>()
-            .expect("invalid get internal value").clone()
+            .write().unwrap().get_internal_value()
     }
 }
 
@@ -118,6 +113,71 @@ impl ObjectBody {
             internal_value: None,
         }
     }
+
+    pub fn empty() -> Self {
+        ObjectBody::new(&None)
+    }
+
+    pub fn get_method(&self, symbol: SymbolId) -> Result<Method> {
+        let parent = self.parent.clone();
+        Ok(self.methods
+            .get(&symbol)
+            .map(|x| x.clone())
+            .or_else(|| {
+                if let Some(parent) = parent {
+                    parent.get_method(symbol).ok()
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::MethodNotFound)?)
+    }
+
+    pub fn add_method(&mut self, symbol: SymbolId, method: Method) {
+        self.methods.insert(symbol, method);
+    }
+
+    pub fn add_method_str(&mut self, symbol: &str, method: Method, vm: &VirtualMachine) {
+        self.add_method(vm.to_symbol(symbol), method)
+    }
+
+    pub fn set_member(&mut self, symbol: SymbolId, value: Value) {
+        self.members.insert(symbol, value);
+    }
+
+    pub fn get_member(&self, symbol: SymbolId) -> Result<Value> {
+        let parent = self.parent.clone();
+
+        Ok(self.members
+            .get(&symbol)
+            .map(|x| x.clone())
+            .or_else(|| {
+                if let Some(parent) = parent {
+                    parent.get_member(symbol).ok()
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::MemberNotFound)?)
+    }
+
+    pub fn get_member_str(&self, symbol: &str, vm: &VirtualMachine) -> Result<Value> {
+        self.get_member(vm.to_symbol(symbol))
+    }
+
+    pub fn set_member_str(&mut self, symbol: &str, value: Value, vm: &VirtualMachine) {
+        self.set_member(vm.to_symbol(symbol), value)
+    }
+
+    pub fn set_internal_value(&mut self, internal_value: Arc<dyn Any + Send + Sync>) {
+        self.internal_value = Some(internal_value);
+    }
+
+    pub fn get_internal_value<T: Clone + Any + Send + Sync>(&self) -> Arc<T> {
+        self.internal_value.clone()
+            .expect("invalid get internal value").downcast::<T>()
+            .expect("invalid get internal value").clone()
+    }
 }
 
 
@@ -130,9 +190,7 @@ pub mod root {
 
     pub fn create(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let this_obj = vm.get_object_from_value(this)?;
-        let new_object = Object {
-            body: RwLock::new(ObjectBody::new(&Some(this_obj.clone())))
-        };
+        let new_object = ObjectBody::new(&Some(this_obj.clone()));
         Ok(Value::ObjectReference(vm.allocate(new_object)?))
     }
 }
@@ -219,6 +277,18 @@ pub mod block {
         Ok(obj_value)
     }
 
+    pub fn empty_block(vm: &VirtualMachine) -> Result<Value> {
+        let block = vm.get_value_in_scope_from_symbol("ブロック").expect("not defined ブロック");
+        let obj_value: Value = super::root::create(&block, &vec![], vm)?;
+        let obj: Arc<super::Object> = vm.get_object_from_value(&obj_value)?;
+        let v: Arc<(Vec<String>, Vec<Arc<ASTNode>>)> = Arc::new(
+            (vec![],
+             vec![],
+            ));
+        obj.set_internal_value(v);
+        Ok(obj_value)
+    }
+
     pub fn repeat(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let n: f64 = args.first().ok_or(Error::Runtime)?.as_num()?;
         if n.is_sign_negative() {
@@ -235,7 +305,7 @@ pub mod block {
         exec(this, &vec![], vm)
     }
 
-    pub fn if_(this: &Value, args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+    pub fn if_(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let object_id = super::condition::create_internal(vm)?;
         let object = vm.get_object(object_id).unwrap();
         let flag = exec(this, &vec![], vm)?.as_bool()?;
@@ -269,7 +339,7 @@ pub mod condition {
     pub fn create_super_object(root_object_id: ObjectId, vm: &VirtualMachine) -> Result<ObjectId> {
         let root_value = Value::ObjectReference(root_object_id);
         let super_object_value: Value = super::root::create(&root_value, &vec![], vm)?;
-        let mut super_object: Arc<Object> = super_object_value.as_object(vm)?;
+        let super_object: Arc<Object> = super_object_value.as_object(vm)?;
 
         super_object.set_member_str("flag", Value::Bool(false), vm);
         super_object.add_method_str("実行", exec, vm);
@@ -306,5 +376,32 @@ pub mod condition {
         object.set_member_str("flag", Value::Bool(!b), vm);
 
         Ok(Value::ObjectReference(object_id))
+    }
+}
+
+pub mod button {
+    use crate::vm::{ObjectId, VirtualMachine};
+    use crate::types::Value;
+    use std::sync::Arc;
+    use crate::object::Object;
+    use crate::error::Result;
+
+    pub fn create_super_object(root_object_id: ObjectId, vm: &VirtualMachine) -> Result<ObjectId> {
+        let root_value = Value::ObjectReference(root_object_id);
+        let super_object_value: Value = super::root::create(&root_value, &vec![], vm)?;
+        let super_object: Arc<Object> = super_object_value.as_object(vm)?;
+
+        super_object.set_member_str("動作", super::block::empty_block(vm)?, vm);
+        super_object.add_method_str("クリック", click, vm);
+
+        vm.assign(vm.to_symbol("ボタン"), &super_object_value);
+        super_object_value.as_object_id()
+    }
+
+    pub fn click(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
+        let this_object: Arc<Object> = this.as_object(vm)?;
+        let dousa = this_object.get_member_str("動作", vm).expect("not defined 動作");
+
+        super::block::exec(&dousa, &vec![], vm)
     }
 }
