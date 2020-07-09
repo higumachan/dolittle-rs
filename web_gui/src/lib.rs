@@ -1,14 +1,17 @@
+#[macro_use]
+extern crate lazy_static;
+
 mod viewmodel;
 
 use std::f64;
 use wasm_bindgen::prelude::*;
-use interpreter::Interpreter;
 use wasm_bindgen::__rt::std::sync::{Arc, RwLock};
-use crate::viewmodel::InterpreterViewModel;
+use crate::viewmodel::{InterpreterViewModel, ViewModel};
 use wasm_bindgen::JsCast;
 use web_sys;
 use js_sys;
 use wasm_bindgen_futures::JsFuture;
+use interpreter::Interpreter;
 
 #[wasm_bindgen(inline_js = "module.exports.sleep = function sleep(ms) { return new Promise((resolve)=> setTimeout(resolve, ms)); }")]
 extern "C"  {
@@ -20,15 +23,24 @@ extern "C" {
     fn alert(s: &str);
 }
 
+lazy_static! {
+    pub static ref interp: Arc<RwLock<Interpreter>> = Arc::new(RwLock::new(Interpreter::new()));
+}
+
 #[wasm_bindgen]
 pub async fn run(f: JsValue) {
-    let mut interpreter = Arc::new(RwLock::new(Interpreter::new()));
-    let view_model = InterpreterViewModel::new(interpreter.clone());
+    let view_model = InterpreterViewModel::new(interp.clone());
+
+    {
+        interp.write().unwrap().exec("かめた＝タートル！作る。");
+    }
 
     let f = js_sys::Function::from(f);
 
     loop {
-        f.call1(&JsValue::NULL, &JsValue::from_str("test"));
+        let visual_objects =
+            JsValue::from_serde(&view_model.visual_objects()).unwrap();
+        f.call1(&JsValue::NULL, &visual_objects);
         JsFuture::from(sleep(1000.0)).await;
     }
 }

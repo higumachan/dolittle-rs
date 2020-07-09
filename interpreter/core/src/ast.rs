@@ -1,10 +1,8 @@
 use crate::types::Value;
 use crate::error::Result;
-use std::rc::Rc;
 use crate::vm::VirtualMachine;
 use std::fmt::Debug;
-use std::ops::Deref;
-use crate::object::{ObjectBody, Object};
+use std::sync::Arc;
 
 pub trait Eval: Debug {
     fn eval(&self, vm: &VirtualMachine) -> Result<Value>;
@@ -37,21 +35,21 @@ impl ASTNode {
     pub fn new_method_call(method: &str, object: &ASTNode, args: &Vec<ASTNode>) -> Self {
         Self::MethodCall(MethodCallImpl {
             method: method.to_string(),
-            object: Rc::new(object.clone()),
-            args: args.into_iter().map(|x| Rc::new(x.clone())).collect(),
+            object: Arc::new(object.clone()),
+            args: args.into_iter().map(|x| Arc::new(x.clone())).collect(),
         })
     }
 
     pub fn new_assign(object: &Option<ASTNode>, target: &str, value_node: &ASTNode) -> Self {
         Self::Assign(AssignImpl {
-            object: object.as_ref().map(|x| Rc::new(x.clone())),
+            object: object.as_ref().map(|x| Arc::new(x.clone())),
             target: target.to_string(),
-            value_node: Rc::new(value_node.clone()),
+            value_node: Arc::new(value_node.clone()),
         })
     }
 
     pub fn new_decl(object: &Option<ASTNode>, target: &str) -> Self {
-        let object = object.as_ref().map(|x| Rc::new(x.clone()));
+        let object = object.as_ref().map(|x| Arc::new(x.clone()));
         Self::Decl(DeclImpl {
             object,
             target: target.to_string(),
@@ -65,103 +63,103 @@ impl ASTNode {
     pub fn new_block_define(dummy_args: &Vec<&str>, body: &Vec<ASTNode>) -> Self {
         Self::BlockDefine(BlockDefineImpl {
             dummy_args: dummy_args.iter().map(|x| x.to_string()).collect(),
-            body: body.clone().into_iter().map(|x| Rc::new(x)).collect(),
+            body: body.clone().into_iter().map(|x| Arc::new(x)).collect(),
         })
     }
 
     pub fn new_add(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Add,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_sub(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Sub,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_div(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Div,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_mul(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Mul,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_lt(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Lt,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_lte(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Lte,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_gt(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Gt,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_gte(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Gte,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_eq(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Eq,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_ne(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Ne,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_and(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::And,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 
     pub fn new_or(left: &ASTNode, right: &ASTNode) -> Self {
         Self::DoBinaryOperator(BinaryOperatorImpl {
             operator: BinaryOperator::Or,
-            left: Rc::new(left.clone()),
-            right: Rc::new(right.clone()),
+            left: Arc::new(left.clone()),
+            right: Arc::new(right.clone()),
         })
     }
 }
@@ -170,8 +168,8 @@ impl ASTNode {
 #[derive(Debug, PartialEq, Clone)]
 pub struct MethodCallImpl {
     pub method: String,
-    pub object: Rc<ASTNode>,
-    pub args: Vec<Rc<ASTNode>>,
+    pub object: Arc<ASTNode>,
+    pub args: Vec<Arc<ASTNode>>,
 }
 
 impl Eval for MethodCallImpl {
@@ -185,9 +183,9 @@ impl Eval for MethodCallImpl {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AssignImpl {
-    pub object: Option<Rc<ASTNode>>,
+    pub object: Option<Arc<ASTNode>>,
     pub target: String,
-    pub value_node: Rc<ASTNode>,
+    pub value_node: Arc<ASTNode>,
 }
 
 impl Eval for AssignImpl {
@@ -210,7 +208,7 @@ impl Eval for AssignImpl {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DeclImpl {
-    pub object: Option<Rc<ASTNode>>,
+    pub object: Option<Arc<ASTNode>>,
     pub target: String,
 }
 
@@ -233,7 +231,7 @@ impl Eval for DeclImpl {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockDefineImpl {
     pub dummy_args: Vec<String>,
-    pub body: Vec<Rc<ASTNode>>,
+    pub body: Vec<Arc<ASTNode>>,
 }
 
 impl Eval for BlockDefineImpl {
@@ -284,8 +282,8 @@ impl BinaryOperator {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BinaryOperatorImpl {
     pub operator: BinaryOperator,
-    pub left: Rc<ASTNode>,
-    pub right: Rc<ASTNode>,
+    pub left: Arc<ASTNode>,
+    pub right: Arc<ASTNode>,
 }
 
 impl Eval for BinaryOperatorImpl {

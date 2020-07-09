@@ -7,10 +7,7 @@ pub mod symbol;
 
 #[cfg(test)]
 mod tests {
-    use crate::symbol::{SymbolId, SymbolTable};
     use crate::object;
-    use std::rc::Rc;
-    use std::cell::RefCell;
     use crate::object::{ObjectBody, Object};
     use crate::types::Value;
     use crate::vm::VirtualMachine;

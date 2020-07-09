@@ -1,37 +1,36 @@
-use std::cell::RefCell;
 use crate::symbol::SymbolId;
-use std::rc::Rc;
 use crate::types::Value;
 use crate::error::{Error, Result};
 use std::collections::HashMap;
-use std::any::{Any, TypeId};
-use crate::vm::{VirtualMachine, ObjectId};
+use std::any::{Any};
+use crate::vm::{VirtualMachine};
 use std::fmt::{Debug, Formatter};
+use std::sync::{RwLock, Arc};
 
 type Method = fn(&Value, &Vec<Value>, &VirtualMachine) -> Result<Value>;
 
 
 #[derive(Debug)]
 pub struct Object {
-    body: RefCell<ObjectBody>,
+    body: RwLock<ObjectBody>,
 }
 
 impl Object {
     pub fn empty() -> Self {
         Self {
-            body: RefCell::new(ObjectBody::new(&None))
+            body: RwLock::new(ObjectBody::new(&None))
         }
     }
 
     pub fn new(body: ObjectBody) -> Self {
         Self {
-            body: RefCell::new(body)
+            body: RwLock::new(body)
         }
     }
 
     pub fn get_method(&self, symbol: SymbolId) -> Result<Method> {
-        let parent = self.body.borrow().parent.clone();
-        Ok(self.body.borrow().methods
+        let parent = self.body.read().unwrap().parent.clone();
+        Ok(self.body.read().unwrap().methods
             .get(&symbol)
             .map(|x| x.clone())
             .or_else(|| {
@@ -45,7 +44,7 @@ impl Object {
     }
 
     pub fn add_method(&self, symbol: SymbolId, method: Method) {
-        self.body.borrow_mut().methods.insert(symbol, method);
+        self.body.write().unwrap().methods.insert(symbol, method);
     }
 
     pub fn add_method_str(&self, symbol: &str, method: Method, vm: &VirtualMachine) {
@@ -53,13 +52,13 @@ impl Object {
     }
 
     pub fn set_member(&self, symbol: SymbolId, value: Value) {
-        self.body.borrow_mut().members.insert(symbol, value);
+        self.body.write().unwrap().members.insert(symbol, value);
     }
 
     pub fn get_member(&self, symbol: SymbolId) -> Result<Value> {
-        let parent = self.body.borrow().parent.clone();
+        let parent = self.body.read().unwrap().parent.clone();
 
-        Ok(self.body.borrow().members
+        Ok(self.body.read().unwrap().members
             .get(&symbol)
             .map(|x| x.clone())
             .or_else(|| {
@@ -80,23 +79,23 @@ impl Object {
         self.set_member(vm.to_symbol(symbol), value)
     }
 
-    pub fn set_internal_value(&self, internal_value: Rc<dyn Any>) {
-        self.body.borrow_mut().internal_value = Some(internal_value);
+    pub fn set_internal_value(&self, internal_value: Arc<dyn Any + Send + Sync>) {
+        self.body.write().unwrap().internal_value = Some(internal_value);
     }
 
-    pub fn get_internal_value<T: Clone + Any>(&self) -> Rc<T> {
+    pub fn get_internal_value<T: Clone + Any + Send + Sync>(&self) -> Arc<T> {
         self.body
-            .borrow_mut().internal_value.clone()
+            .write().unwrap().internal_value.clone()
             .expect("invalid get internal value").downcast::<T>()
             .expect("invalid get internal value").clone()
     }
 }
 
 pub struct ObjectBody {
-    parent: Option<Rc<Object>>,
+    parent: Option<Arc<Object>>,
     members: HashMap<SymbolId, Value>,
     methods: HashMap<SymbolId, Method>,
-    internal_value: Option<Rc<dyn Any>>,
+    internal_value: Option<Arc<dyn Any + Send + Sync>>,
 }
 
 impl Debug for ObjectBody {
@@ -109,11 +108,11 @@ impl Debug for ObjectBody {
 }
 
 impl ObjectBody {
-    pub fn new(parent: &Option<Rc<Object>>) -> Self {
+    pub fn new(parent: &Option<Arc<Object>>) -> Self {
         ObjectBody{
             parent: parent.clone(),
             members: parent.as_ref().map(
-                |p| p.body.borrow().members.clone()
+                |p| p.body.read().unwrap().members.clone()
             ).unwrap_or(HashMap::new()),
             methods: HashMap::new(),
             internal_value: None,
@@ -123,17 +122,16 @@ impl ObjectBody {
 
 
 pub mod root {
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use crate::types::Value;
     use crate::vm::VirtualMachine;
     use crate::error::Result;
     use crate::object::{Object, ObjectBody};
+    use std::sync::RwLock;
 
     pub fn create(this: &Value, _args: &Vec<Value>, vm: &VirtualMachine) -> Result<Value> {
         let this_obj = vm.get_object_from_value(this)?;
         let new_object = Object {
-            body: RefCell::new(ObjectBody::new(&Some(this_obj.clone())))
+            body: RwLock::new(ObjectBody::new(&Some(this_obj.clone())))
         };
         Ok(Value::ObjectReference(vm.allocate(new_object)?))
     }
@@ -203,19 +201,17 @@ pub mod block {
     use crate::types::Value;
     use crate::vm::VirtualMachine;
     use crate::error::{Error, Result};
-    use utilities::geometry::dir_vector;
-    use crate::ast::{ASTNode, BlockDefineImpl};
-    use std::rc::Rc;
+    use crate::ast::{ASTNode};
     use std::borrow::Borrow;
-    use std::any::{TypeId, Any};
+    use std::sync::Arc;
 
-    type BlockInternalValue = (Vec<String>, Vec<Rc<ASTNode>>);
+    type BlockInternalValue = (Vec<String>, Vec<Arc<ASTNode>>);
 
     pub fn create(this: &Value, dummy_args: &Vec<String>,
-                  body: &Vec<Rc<ASTNode>>, vm: &VirtualMachine) -> Result<Value> {
+                  body: &Vec<Arc<ASTNode>>, vm: &VirtualMachine) -> Result<Value> {
         let obj_value: Value = super::root::create(this, &vec![], vm)?;
-        let obj: Rc<super::Object> = vm.get_object_from_value(&obj_value)?;
-        let v = Rc::new(
+        let obj: Arc<super::Object> = vm.get_object_from_value(&obj_value)?;
+        let v = Arc::new(
             (dummy_args.clone(),
              body.clone()
             ));
@@ -265,15 +261,15 @@ pub mod block {
 pub mod condition {
     use crate::vm::{VirtualMachine, ObjectId};
     use crate::types::Value;
-    use crate::error::{Error, Result};
+    use crate::error::{Result};
     use crate::object::Object;
     use crate::object::root::create;
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     pub fn create_super_object(root_object_id: ObjectId, vm: &VirtualMachine) -> Result<ObjectId> {
         let root_value = Value::ObjectReference(root_object_id);
         let super_object_value: Value = super::root::create(&root_value, &vec![], vm)?;
-        let mut super_object: Rc<Object> = super_object_value.as_object(vm)?;
+        let mut super_object: Arc<Object> = super_object_value.as_object(vm)?;
 
         super_object.set_member_str("flag", Value::Bool(false), vm);
         super_object.add_method_str("実行", exec, vm);

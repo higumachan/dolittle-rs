@@ -1,7 +1,7 @@
 use crate::vm::{ObjectId, VirtualMachine};
 use crate::error::{Error, Result};
 use crate::object::Object;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -37,7 +37,7 @@ impl Value {
         }
     }
 
-    pub fn as_object(&self, vm: &VirtualMachine) -> Result<Rc<Object>> {
+    pub fn as_object(&self, vm: &VirtualMachine) -> Result<Arc<Object>> {
         vm.get_object(self.as_object_id()?)
     }
 }

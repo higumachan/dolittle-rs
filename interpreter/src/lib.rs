@@ -4,6 +4,7 @@ use core::object::Object;
 use std::collections::HashMap;
 use std::rc::Rc;
 use core::symbol::SymbolId;
+use std::sync::Arc;
 
 pub struct Interpreter {
     vm: VirtualMachine,
@@ -17,7 +18,7 @@ impl Interpreter {
         }
     }
 
-    pub fn get_objects(&self) -> Vec<Rc<Object>> {
+    pub fn get_objects(&self) -> Vec<Arc<Object>> {
         self.vm.get_object_heap().iter()
             .map(|x| x.1.clone()).collect()
     }

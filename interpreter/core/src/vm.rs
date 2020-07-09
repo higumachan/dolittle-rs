@@ -1,32 +1,31 @@
-use std::rc::Rc;
 use crate::symbol::{SymbolId, SymbolTable};
-use std::cell::{RefCell, Cell, Ref};
 use std::collections::HashMap;
 use crate::error::{Error, Result};
 use crate::types::Value;
 use crate::object::Object;
 use crate::object;
 use crate::ast::{ASTNode, Eval};
+use std::sync::{RwLock, Arc, Mutex, RwLockReadGuard};
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 pub struct ObjectId(usize);
 
 pub struct VirtualMachine {
-    object_heap: RefCell<HashMap<ObjectId, Rc<Object>>>,
-    next_object_id: Cell<usize>,
-    value_assigns_table: RefCell<HashMap<SymbolId, Value>>,
-    symbol_table: RefCell<SymbolTable>,
-    stack: RefCell<Vec<HashMap<SymbolId, Value>>>,
+    object_heap: RwLock<HashMap<ObjectId, Arc<Object>>>,
+    next_object_id: Mutex<usize>,
+    value_assigns_table: RwLock<HashMap<SymbolId, Value>>,
+    symbol_table: RwLock<SymbolTable>,
+    stack: RwLock<Vec<HashMap<SymbolId, Value>>>,
 }
 
 impl VirtualMachine {
     pub fn new() -> Self {
         Self {
-            object_heap: RefCell::new(HashMap::new()),
-            next_object_id: Cell::new(0),
-            value_assigns_table: RefCell::new(HashMap::new()),
-            symbol_table: RefCell::new(SymbolTable::new()),
-            stack: RefCell::new(vec![]),
+            object_heap: RwLock::new(HashMap::new()),
+            next_object_id: Mutex::new(0),
+            value_assigns_table: RwLock::new(HashMap::new()),
+            symbol_table: RwLock::new(SymbolTable::new()),
+            stack: RwLock::new(vec![]),
         }
     }
 
@@ -39,18 +38,18 @@ impl VirtualMachine {
         for (va, ra) in dummy_args.iter().zip(real_args.iter()) {
             s.insert(self.to_symbol(va), ra.clone());
         }
-        self.stack.borrow_mut().push(s);
+        self.stack.write().unwrap().push(s);
     }
 
     pub fn pop_stack(&self) {
-        self.stack.borrow_mut().pop();
+        self.stack.write().unwrap().pop();
     }
 
     pub fn call_method(&self, this: &Value, method: SymbolId, args: &Vec<Value>) -> Result<Value> {
         match this {
             Value::ObjectReference(oid) => {
                 let obj = {
-                    let obj_heap = self.object_heap.borrow();
+                    let obj_heap = self.object_heap.read().unwrap();
                     obj_heap.get(&oid).unwrap().clone()
                 };
                 let method_obj = obj.get_member(method);
@@ -75,20 +74,20 @@ impl VirtualMachine {
     }
 
     pub fn assign(&self, target: SymbolId, value: &Value) -> Result<()> {
-        self.value_assigns_table.borrow_mut().insert(target, value.clone());
+        self.value_assigns_table.write().unwrap().insert(target, value.clone());
         Ok(())
     }
 
     pub fn allocate(&self, object: Object) -> Result<ObjectId> {
-        let id = ObjectId(self.next_object_id.get());
-        self.next_object_id.set(id.0 + 1);
-        self.object_heap.borrow_mut()
-            .insert(id, Rc::new(object));
+        let id = ObjectId(*self.next_object_id.lock().unwrap());
+        *self.next_object_id.lock().unwrap() = id.0 + 1;
+        self.object_heap.write().unwrap()
+            .insert(id, Arc::new(object));
         Ok(id)
     }
 
-    pub fn get_object(&self, object_id: ObjectId) -> Result<Rc<Object>> {
-        self.object_heap.borrow()
+    pub fn get_object(&self, object_id: ObjectId) -> Result<Arc<Object>> {
+        self.object_heap.read().unwrap()
             .get(&object_id)
             .ok_or(Error::ObjectNotFound).map(|x| x.clone())
     }
@@ -97,7 +96,7 @@ impl VirtualMachine {
         Ok(Value::ObjectReference(self.get_object_id_in_assigns(self.to_symbol("ブロック"))?))
     }
 
-    pub fn get_object_from_value(&self, value :&Value) -> Result<Rc<Object>> {
+    pub fn get_object_from_value(&self, value :&Value) -> Result<Arc<Object>> {
         match value {
             Value::ObjectReference(obj_id) => {
                 self.get_object(*obj_id)
@@ -108,12 +107,14 @@ impl VirtualMachine {
         }
     }
 
-    pub fn get_object_in_assigns_from_symbol(&self, symbol: &str) -> Result<Rc<Object>> {
-        self.get_object(self.get_object_id_in_assigns(self.to_symbol(symbol))?)
+    pub fn get_object_in_assigns_from_symbol(&self, symbol: &str) -> Result<Arc<Object>> {
+        self.get_object(
+            self.get_object_id_in_assigns(
+                self.to_symbol(symbol))?)
     }
 
-    pub fn get_object_heap(&self) -> Ref<HashMap<ObjectId, Rc::<Object>>> {
-        self.object_heap.borrow()
+    pub fn get_object_heap(&self) -> RwLockReadGuard<HashMap<ObjectId, Arc::<Object>>> {
+        self.object_heap.read().unwrap()
     }
 
     pub fn get_object_id_in_assigns(&self, symbol_id: SymbolId) -> Result<ObjectId> {
@@ -122,14 +123,14 @@ impl VirtualMachine {
 
     fn get_value_in_assigns(&self, symbol_id: SymbolId) -> Result<Value> {
         let assigns_table = self.value_assigns_table
-            .borrow();
+            .read().unwrap();
         assigns_table.get(&symbol_id)
             .cloned()
             .ok_or(Error::ObjectNotFound)
     }
 
     pub fn get_value_in_scope(&self, symbol_id: SymbolId) -> Result<Value> {
-        self.stack.borrow().iter().rev().find_map(|x| x.get(&symbol_id).cloned())
+        self.stack.read().unwrap().iter().rev().find_map(|x| x.get(&symbol_id).cloned())
             .ok_or(Error::ObjectNotFound)
             .or_else(|_| {
                 self.get_value_in_assigns(symbol_id)
@@ -141,12 +142,12 @@ impl VirtualMachine {
         self.get_value_in_scope(sym_id)
     }
 
-    pub fn object_heap_borrow(&self) -> Ref<HashMap<ObjectId, Rc<Object>>>{
-        self.object_heap.borrow()
+    pub fn object_heap_borrow(&self) -> RwLockReadGuard<HashMap<ObjectId, Arc<Object>>>{
+        self.object_heap.read().unwrap()
     }
 
     pub fn to_symbol(&self, symbol_str: &str) -> SymbolId {
-        self.symbol_table.borrow_mut().insert_user_symbol_if_no_exist(symbol_str)
+        self.symbol_table.write().unwrap().insert_user_symbol_if_no_exist(symbol_str)
     }
 
     pub fn initialize(&mut self) {
