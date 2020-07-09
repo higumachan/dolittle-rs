@@ -23,12 +23,14 @@ jobs:
 
       - name: Install
         run: npm install
+        working-directory: ./web_gui
 
       - name: Build
         run: npm run build
+        working-directory: ./web_gui
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./web_gui/dist
