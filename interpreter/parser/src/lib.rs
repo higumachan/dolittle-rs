@@ -269,11 +269,11 @@ fn num_static_value(input: &str) -> IResult<&str, ASTNode> {
     map(num, |x| ASTNode::new_static_value(&x))(input)
 }
 
-fn whitespace_delimited<I, O1, F, E: ParseError<I>>(sep: F) -> impl Fn(I) -> IResult<I, O1, E>
+fn whitespace_delimited<I, O1, F, E: ParseError<I>>(mut sep: F) -> impl FnMut(I) -> IResult<I, O1, E>
 where
     I: InputTakeAtPosition,
     <I as InputTakeAtPosition>::Item: IsChar,
-    F: Fn(I) -> IResult<I, O1, E>,
+    F: FnMut(I) -> IResult<I, O1, E>,
 {
     move |input: I| {
         let (input, _) = nom_unicode::complete::space0(input)?;
@@ -486,7 +486,7 @@ mod tests {
     use nom::{
         IResult,
         Err,
-        error::{ErrorKind},
+        error::{ErrorKind, Error},
         character,
     };
     use rstest::*;
@@ -509,7 +509,7 @@ mod tests {
     #[rstest(input, expected,
         case("+", Ok(("", SpecialToken::Plus))),
         case("＋", Ok(("", SpecialToken::Plus))),
-        case("1", Err(Err::Error(("1", ErrorKind::Tag)))),
+        case("1", Err(Err::Error(Error::new("1", ErrorKind::Tag)))),
         case("=", Ok(("", SpecialToken::Equal))),
     )]
     fn parse_specials(input: &str, expected: IResult<&str, SpecialToken>) {
@@ -520,8 +520,8 @@ mod tests {
         case("なでこ", Ok(("", "なでこ".to_string()))),
         case("なでこ1", Ok(("", "なでこ1".to_string()))),
         case("なでこ１", Ok(("", "なでこ１".to_string()))),
-        case("１なでこ", Err(Err::Error(("１なでこ", ErrorKind::Not)))),
-        case("！なでこ", Err(Err::Error(("！なでこ", ErrorKind::Not)))),
+        case("１なでこ", Err(Err::Error(Error::new("１なでこ", ErrorKind::Not)))),
+        case("！なでこ", Err(Err::Error(Error::new("！なでこ", ErrorKind::Not)))),
     )]
     fn parse_symbol(input: &str, expected: IResult<&str, String>) {
         assert_eq!(symbol(input), expected);

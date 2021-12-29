@@ -12,6 +12,36 @@
       <sourceFolder url="file://$MODULE_DIR$/interpreter/parser/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/gui/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/web_gui/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/arrayvec-f79e0418fb70626e/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/bitflags-a532878582850084/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/byteorder-ca592426f22db851/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/core-foundation-sys-714760ce81e7642c/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/core-foundation-sys-c89d3cf04d8fd760/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/crossbeam-epoch-fe73f8b62e0acdb0/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/crossbeam-utils-6d1ba9b717bff66d/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/getrandom-3aac70c3170f5605/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/glam-0e94501779362dfa/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/libc-9c851ffd0b871ad9/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/log-793428d6a6c7480d/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/maybe-uninit-4d2e5cc88463fd5c/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/memchr-ba753686d1209c38/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/memoffset-5c998e994759bbaf/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/nom-d0b86fd834cb77c6/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-bigint-fae06e18b9e10637/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-integer-1bf4b4a6bdda5ff2/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-iter-e3eedb5841b1d56e/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-rational-c87b7f94b09b1c34/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/num-traits-fda2338ed3f8e36c/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/objc_exception-2dcbd99549c43fa9/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/parking_lot-9fb4846523e0ee77/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/parking_lot_core-45fc62bf4453bae4/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/pin-project-internal-6f05870982f8a6b0/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/proc-macro-nested-a8a8bc5cd6fe6104/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/proc-macro2-22273313fdc3251c/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/proc-macro2-cdd44c53955703b5/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/spirv_cross-61f2df9110d77d3c/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/syn-25d317532d3ca949/out" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/target/debug/build/syn-65167dbd03fe226f/out" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/parser/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
