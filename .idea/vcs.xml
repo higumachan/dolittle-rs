@@ -2,9 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/.flatpak-builder/build/flatpak.json-1" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/.flatpak-builder/build/xi-core" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/.flatpak-builder/build/xi-core-1" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/.flatpak-builder/build/xi-core-1/rust/syntect-plugin/syntect-resources" vcs="Git" />
   </component>
 </project>

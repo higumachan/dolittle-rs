@@ -5,7 +5,6 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
-use tokio::time::delay_for;
 use tokio::io::{stdin, BufReader, AsyncBufReadExt};
 use tokio::{pin, select};
 use std::time::Duration;
@@ -136,7 +135,7 @@ async fn event_loop<VM: ViewModel>(mut app: App<VM>, mut events: Events, window:
             app.update(&args);
         }
 
-        delay_for(Duration::from_millis(10)).await;
+        tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 

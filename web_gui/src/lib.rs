@@ -36,8 +36,8 @@ pub async fn run(f: JsValue) {
     loop {
         let visual_objects =
             JsValue::from_serde(&view_model.visual_objects()).unwrap();
-        f.call1(&JsValue::NULL, &visual_objects);
-        JsFuture::from(sleep(1000.0)).await;
+        f.call1(&JsValue::NULL, &visual_objects).unwrap();
+        JsFuture::from(sleep(1000.0)).await.unwrap();
     }
 }
 

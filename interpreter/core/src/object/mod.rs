@@ -354,7 +354,7 @@ pub mod condition {
         super_object.set_member_str("flag", Value::Bool(false), vm);
         super_object.add_method_str("実行", exec, vm);
         super_object.add_method_str("そうでないなら", else_, vm);
-        vm.assign(vm.to_symbol("Condition"), &super_object_value);
+        let _ = vm.assign(vm.to_symbol("Condition"), &super_object_value);
         super_object_value.as_object_id()
     }
 
@@ -404,7 +404,7 @@ pub mod button {
         super_object.set_member_str("動作", super::block::empty_block(vm)?, vm);
         super_object.add_method_str("クリック", click, vm);
 
-        vm.assign(vm.to_symbol("ボタン"), &super_object_value);
+        let _ = vm.assign(vm.to_symbol("ボタン"), &super_object_value);
         super_object_value.as_object_id()
     }
 

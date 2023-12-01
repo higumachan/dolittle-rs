@@ -7,11 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-piston = "0.50.0"
-piston2d-graphics = "0.36.0"
-pistoncore-glutin_window = "0.64.0"
-piston2d-opengl_graphics = "0.72.0"
+piston = "0.55.0"
+piston2d-graphics = "0.44.0"
+pistoncore-glutin_window = "0.72.0"
+piston2d-opengl_graphics = "0.83.0"
 find_folder = "0.3.0"
 interpreter = { path = "../interpreter"}
 core = { path = "../interpreter/core"}
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "1.34.0", features = ["full"] }
